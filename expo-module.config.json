@@ -1,0 +1,21 @@
+{
+  "platforms": ["android"],
+  "android": {
+    "modules": ["expo.modules.androidauto.AndroidAutoModule"]
+  },
+  "dependencyOnlyInjection": {
+    "supported": true,
+    "android": {
+      "manifestQueries": [
+        {
+          "intent": {
+            "action": "androidx.car.app.CarAppService"
+          }
+        }
+      ],
+      "permissions": [
+        "com.google.android.gms.permission.CAR_APPLICATION"
+      ]
+    }
+  }
+}

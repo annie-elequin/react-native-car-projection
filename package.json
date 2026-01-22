@@ -1,0 +1,55 @@
+{
+  "name": "react-native-android-auto",
+  "version": "1.0.0",
+  "description": "React Native module for Android Auto integration using Car App Library",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "exports": {
+    ".": "./build/index.js",
+    "./app.plugin.js": "./app.plugin.js",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "expo-module build",
+    "clean": "expo-module clean",
+    "lint": "expo-module lint",
+    "test": "expo-module test",
+    "prepare": "expo-module prepare",
+    "prepublishOnly": "expo-module prepublishOnly",
+    "expo-module": "expo-module",
+    "test-android": "echo '⚠️  Run: npx create-expo-app TestApp && cd TestApp && npm install ../ && npx expo run:android' && echo 'See DEVELOPMENT.md for full guide'"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "android-auto",
+    "car-app",
+    "automotive"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/react-native-android-auto.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/react-native-android-auto/issues"
+  },
+  "author": "Your Name <your.email@example.com>",
+  "license": "MIT",
+  "homepage": "https://github.com/yourusername/react-native-android-auto#readme",
+  "devDependencies": {
+    "expo-module-scripts": "^3.5.2"
+  },
+  "peerDependencies": {
+    "expo": "*",
+    "react": "*",
+    "react-native": "*"
+  },
+  "expo": {
+    "name": "react-native-android-auto",
+    "slug": "react-native-android-auto",
+    "version": "1.0.0",
+    "platforms": [
+      "android"
+    ]
+  }
+}

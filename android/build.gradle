@@ -1,0 +1,98 @@
+apply plugin: 'com.android.library'
+apply plugin: 'kotlin-android'
+
+group = 'expo.modules.androidauto'
+version = '1.0.0'
+
+buildscript {
+  def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+  if (expoModulesCorePlugin.exists()) {
+    apply from: expoModulesCorePlugin
+    applyKotlinExpoModulesCorePlugin()
+  }
+
+  ext.safeExtGet = { prop, fallback ->
+    rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+  }
+
+  ext.getKotlinVersion = {
+    if (ext.has("kotlinVersion")) {
+      ext.kotlinVersion()
+    } else {
+      ext.safeExtGet("kotlinVersion", "1.8.10")
+    }
+  }
+
+  // Helper to get Java version - adapt to host project
+  ext.getJavaVersion = {
+    // Check for common Java version properties that RN/Expo projects might set
+    def javaVersionFromProject = safeExtGet("javaVersion", null) ?:
+                                safeExtGet("sourceCompatibility", null) ?:
+                                safeExtGet("targetCompatibility", null) ?:
+                                "VERSION_17" // fallback to 17 for modern RN
+    
+    if (javaVersionFromProject instanceof String) {
+      return JavaVersion[javaVersionFromProject]
+    }
+    return javaVersionFromProject ?: JavaVersion.VERSION_17
+  }
+
+  // Helper to get JVM target string for Kotlin
+  ext.getKotlinJvmTarget = {
+    def javaVersion = getJavaVersion()
+    return javaVersion.majorVersion
+  }
+}
+
+android {
+  compileSdkVersion safeExtGet("compileSdkVersion", 34)
+
+  compileOptions {
+    def javaVersion = getJavaVersion()
+    sourceCompatibility javaVersion
+    targetCompatibility javaVersion
+  }
+
+  kotlinOptions {
+    jvmTarget = getKotlinJvmTarget()
+  }
+
+  namespace "expo.modules.androidauto"
+  defaultConfig {
+    minSdkVersion safeExtGet("minSdkVersion", 23)
+    targetSdkVersion safeExtGet("targetSdkVersion", 34)
+    versionCode 1
+    versionName "1.0.0"
+  }
+  lintOptions {
+    abortOnError false
+  }
+  publishing {
+    singleVariant("release") {
+      withSourcesJar()
+    }
+  }
+}
+
+repositories {
+  google()
+  mavenCentral()
+}
+
+dependencies {
+  implementation project(':expo-modules-core')
+  implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
+
+  // Android Auto Car App Library
+  implementation "androidx.car.app:app:1.7.0"
+  implementation "androidx.car.app:app-projected:1.7.0"
+  
+  // Additional Car App Library dependencies
+  implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.7.0"
+  implementation "androidx.lifecycle:lifecycle-common-java8:2.7.0"
+  
+  // Core Android dependencies
+  implementation "androidx.core:core-ktx:1.12.0"
+  implementation "androidx.appcompat:appcompat:1.6.1"
+}
+
