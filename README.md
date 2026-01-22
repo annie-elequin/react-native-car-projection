@@ -1,6 +1,6 @@
-# React Native Android Auto
+# React Native Car Projection
 
-A modern React Native module for integrating Android Auto functionality using the Car App Library and Expo Modules API. Built for Expo SDK 53+ with React Native 0.79 and React 19 support.
+A modern React Native module for integrating Android Auto and CarPlay functionality using the Car App Library and Expo Modules API. Built for Expo SDK 53+ with React Native 0.79 and React 19 support.
 
 ## 🚀 Features
 
@@ -25,9 +25,9 @@ A modern React Native module for integrating Android Auto functionality using th
 ### 1. Install the module
 
 ```bash
-npm install react-native-android-auto
+npm install react-native-car-projection
 # or
-yarn add react-native-android-auto
+yarn add react-native-car-projection
 ```
 
 ### 2. Add the config plugin
@@ -39,7 +39,7 @@ Add the plugin to your `app.json` or `expo.json`:
   "expo": {
     "plugins": [
       [
-        "react-native-android-auto",
+        "react-native-car-projection",
         {
           "carAppCategory": "navigation",
           "minCarApiLevel": 1,
@@ -62,12 +62,12 @@ npx expo run:android
 
 ```typescript
 import React, { useEffect } from 'react';
-import AndroidAuto, { createListTemplate } from 'react-native-android-auto';
+import CarProjection, { createListTemplate } from 'react-native-car-projection';
 
 export default function App() {
   useEffect(() => {
     // Register your root screen
-    AndroidAuto.registerScreen({
+    CarProjection.registerScreen({
       name: 'root',
       template: createListTemplate({
         title: 'My App',
@@ -83,7 +83,7 @@ export default function App() {
     });
 
     // Start the session
-    AndroidAuto.startSession();
+    CarProjection.startSession();
   }, []);
 
   return <YourAppContent />;

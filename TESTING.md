@@ -19,10 +19,10 @@ cd TestAndroidAuto
 ### Step 3: Install the local module
 ```bash
 # Install your local module
-npm install ../react-native-android-auto
+npm install ../react-native-car-projection
 
 # Or if you're in a different location:
-npm install /path/to/react-native-android-auto
+npm install /path/to/react-native-car-projection
 ```
 
 ### Step 4: Configure the app
@@ -33,7 +33,7 @@ Edit `app.json` (or `app.config.js`):
   "expo": {
     "plugins": [
       [
-        "react-native-android-auto",
+        "react-native-car-projection",
         {
           "carAppCategory": "media",
           "minCarApiLevel": 1,
@@ -51,16 +51,16 @@ Edit `App.js` (or `App.tsx`):
 ```javascript
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import AndroidAuto, { createListTemplate } from 'react-native-android-auto';
+import CarProjection, { createListTemplate } from 'react-native-car-projection';
 
 export default function App() {
   useEffect(() => {
     // Register a test screen
-    AndroidAuto.registerScreen({
+    CarProjection.registerScreen({
       name: 'root',
       template: createListTemplate({
         title: 'Test App',
-        header: 'Android Auto Test',
+        header: 'Car Projection Test',
         items: [
           {
             title: 'Test Item 1',
@@ -81,15 +81,15 @@ export default function App() {
     });
 
     // Start the session
-    AndroidAuto.startSession();
+    CarProjection.startSession();
 
     // Listen for events
-    const screenSub = AndroidAuto.addScreenChangedListener((screenName) => {
+    const screenSub = CarProjection.addScreenChangedListener((screenName) => {
       console.log('Screen changed to:', screenName);
     });
 
-    const sessionSub = AndroidAuto.addSessionStartedListener(() => {
-      console.log('Android Auto session started!');
+    const sessionSub = CarProjection.addSessionStartedListener(() => {
+      console.log('Car projection session started!');
     });
 
     return () => {

@@ -1,7 +1,7 @@
 {
-  "name": "react-native-android-auto",
+  "name": "react-native-car-projection",
   "version": "1.0.0",
-  "description": "React Native module for Android Auto integration using Car App Library",
+  "description": "React Native module for Android Auto and CarPlay integration",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "exports": {
@@ -23,19 +23,21 @@
     "react-native",
     "expo",
     "android-auto",
+    "carplay",
     "car-app",
-    "automotive"
+    "automotive",
+    "car-projection"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/react-native-android-auto.git"
+    "url": "git+https://github.com/annie-elequin/react-native-car-projection.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/react-native-android-auto/issues"
+    "url": "https://github.com/annie-elequin/react-native-car-projection/issues"
   },
-  "author": "Your Name <your.email@example.com>",
+  "author": "Annie Elequin",
   "license": "MIT",
-  "homepage": "https://github.com/yourusername/react-native-android-auto#readme",
+  "homepage": "https://github.com/annie-elequin/react-native-car-projection#readme",
   "devDependencies": {
     "expo-module-scripts": "^3.5.2"
   },
@@ -45,11 +47,12 @@
     "react-native": "*"
   },
   "expo": {
-    "name": "react-native-android-auto",
-    "slug": "react-native-android-auto",
+    "name": "react-native-car-projection",
+    "slug": "react-native-car-projection",
     "version": "1.0.0",
     "platforms": [
-      "android"
+      "android",
+      "ios"
     ]
   }
 }

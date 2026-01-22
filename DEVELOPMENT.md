@@ -13,7 +13,7 @@ Since `npm run build` only compiles TypeScript, here are ways to catch Android/K
    cd TestAndroidAuto
    
    # Add your module
-   npm install /path/to/react-native-android-auto
+   npm install /path/to/react-native-car-projection
    
    # Try building
    npx expo run:android --no-install --no-bundler
