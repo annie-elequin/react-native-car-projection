@@ -41,6 +41,8 @@ class AndroidAutoCarAppService : CarAppService() {
         fun getRegisteredScreens(): Map<String, Map<String, Any>> = registeredScreens
 
         fun navigateToScreen(screenName: String, params: Map<String, Any>? = null) {
+            android.util.Log.d("AndroidAuto", "navigateToScreen called from service: screenName=$screenName, params=$params")
+            android.util.Log.d("AndroidAuto", "Current session exists: ${currentSession != null}")
             currentSession?.navigateToScreen(screenName, params)
         }
 
@@ -61,19 +63,31 @@ class AndroidAutoCarAppService : CarAppService() {
         }
 
         fun popScreen() {
+            android.util.Log.d("AndroidAuto", "popScreen called from service")
+            android.util.Log.d("AndroidAuto", "Current session exists: ${currentSession != null}")
             currentSession?.popScreen()
         }
 
         fun popToRoot() {
+            android.util.Log.d("AndroidAuto", "popToRoot called from service")
+            android.util.Log.d("AndroidAuto", "Current session exists: ${currentSession != null}")
             currentSession?.popToRoot()
         }
 
         fun sendEventToJS(eventName: String, data: Any?) {
+            android.util.Log.d("AndroidAuto", "sendEventToJS called: eventName=$eventName")
+            android.util.Log.d("AndroidAuto", "Event data type: ${data?.javaClass?.simpleName}")
+            android.util.Log.d("AndroidAuto", "Event data: $data")
+            android.util.Log.d("AndroidAuto", "Module instance exists: ${moduleInstance != null}")
             try {
-                moduleInstance?.sendEvent(eventName, mapOf("data" to data))
+                val eventMap = mapOf("data" to data)
+                android.util.Log.d("AndroidAuto", "Sending event to JS with map: $eventMap")
+                moduleInstance?.sendEvent(eventName, eventMap)
+                android.util.Log.d("AndroidAuto", "Event sent successfully")
             } catch (e: Exception) {
                 // Log error but don't crash
-                android.util.Log.e("AndroidAutoCarAppService", "Failed to send event to JS: ${e.message}")
+                android.util.Log.e("AndroidAutoCarAppService", "Failed to send event to JS: ${e.message}", e)
+                e.printStackTrace()
             }
         }
 
@@ -86,6 +100,7 @@ class AndroidAutoCarAppService : CarAppService() {
         }
 
         fun setSessionActive(active: Boolean) {
+            android.util.Log.d("AndroidAuto", "setSessionActive called: active=$active")
             isSessionActive = active
         }
     }
@@ -101,9 +116,11 @@ class AndroidAutoCarAppService : CarAppService() {
     }
 
     override fun onCreateSession(): Session {
+        android.util.Log.d("AndroidAuto", "onCreateSession called")
         val session = AndroidAutoSession()
         setCurrentSession(session)
         setSessionActive(true)
+        android.util.Log.d("AndroidAuto", "Session created and activated")
         
         return session
     }
@@ -111,9 +128,11 @@ class AndroidAutoCarAppService : CarAppService() {
     // onNewIntent is not available in current CarAppService API
 
     override fun onDestroy() {
+        android.util.Log.d("AndroidAuto", "onDestroy called")
         super.onDestroy()
         setCurrentSession(null)
         setSessionActive(false)
+        android.util.Log.d("AndroidAuto", "Session destroyed and deactivated")
     }
 }
 

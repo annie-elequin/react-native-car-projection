@@ -32,53 +32,156 @@ if (__DEV__) {
 const isNativeModuleAvailable = AndroidAutoNativeModule != null;
 
 // Create a wrapper that includes both native functions and stub event methods
-const AndroidAutoNativeModule = {
+const AndroidAutoNativeModuleWrapper = {
   // Native module functions with fallbacks if module isn't available
   registerScreen: isNativeModuleAvailable 
-    ? AndroidAutoNativeModule.registerScreen
-    : () => Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.')),
+    ? (config: any) => {
+        console.log('[AndroidAutoNativeModule] registerScreen called');
+        console.log('[AndroidAutoNativeModule] Screen config:', JSON.stringify(config, null, 2));
+        return AndroidAutoNativeModule!.registerScreen(config).then(() => {
+          console.log('[AndroidAutoNativeModule] registerScreen completed');
+        }).catch((error) => {
+          console.error('[AndroidAutoNativeModule] registerScreen error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[AndroidAutoNativeModule] registerScreen called but native module is not available');
+        return Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.'));
+      },
   
   startSession: isNativeModuleAvailable
-    ? AndroidAutoNativeModule.startSession
-    : () => Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.')),
+    ? () => {
+        console.log('[AndroidAutoNativeModule] startSession called');
+        return AndroidAutoNativeModule!.startSession().then(() => {
+          console.log('[AndroidAutoNativeModule] startSession completed');
+        }).catch((error) => {
+          console.error('[AndroidAutoNativeModule] startSession error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[AndroidAutoNativeModule] startSession called but native module is not available');
+        return Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.'));
+      },
   
   navigateToScreen: isNativeModuleAvailable
-    ? AndroidAutoNativeModule.navigateToScreen
-    : () => Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.')),
+    ? (screenName: string, params?: any) => {
+        console.log(`[AndroidAutoNativeModule] navigateToScreen called: screenName=${screenName}, params=`, params);
+        return AndroidAutoNativeModule!.navigateToScreen(screenName, params).then(() => {
+          console.log(`[AndroidAutoNativeModule] navigateToScreen completed: ${screenName}`);
+        }).catch((error) => {
+          console.error(`[AndroidAutoNativeModule] navigateToScreen error for ${screenName}:`, error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[AndroidAutoNativeModule] navigateToScreen called but native module is not available');
+        return Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.'));
+      },
   
   updateScreen: isNativeModuleAvailable
-    ? AndroidAutoNativeModule.updateScreen
-    : () => Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.')),
+    ? (screenName: string, template: any) => {
+        console.log(`[AndroidAutoNativeModule] updateScreen called: screenName=${screenName}`);
+        return AndroidAutoNativeModule!.updateScreen(screenName, template).then(() => {
+          console.log(`[AndroidAutoNativeModule] updateScreen completed: ${screenName}`);
+        }).catch((error) => {
+          console.error(`[AndroidAutoNativeModule] updateScreen error for ${screenName}:`, error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[AndroidAutoNativeModule] updateScreen called but native module is not available');
+        return Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.'));
+      },
   
   getCurrentScreen: isNativeModuleAvailable
-    ? AndroidAutoNativeModule.getCurrentScreen
-    : () => Promise.resolve(null),
+    ? () => {
+        console.log('[AndroidAutoNativeModule] getCurrentScreen called');
+        return AndroidAutoNativeModule!.getCurrentScreen().then((screen) => {
+          console.log(`[AndroidAutoNativeModule] getCurrentScreen result: ${screen}`);
+          return screen;
+        }).catch((error) => {
+          console.error('[AndroidAutoNativeModule] getCurrentScreen error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.warn('[AndroidAutoNativeModule] getCurrentScreen called but native module is not available');
+        return Promise.resolve(null);
+      },
   
   isConnected: isNativeModuleAvailable
-    ? AndroidAutoNativeModule.isConnected
-    : () => Promise.resolve(false),
+    ? () => {
+        console.log('[AndroidAutoNativeModule] isConnected called');
+        return AndroidAutoNativeModule!.isConnected().then((connected) => {
+          console.log(`[AndroidAutoNativeModule] isConnected result: ${connected}`);
+          return connected;
+        }).catch((error) => {
+          console.error('[AndroidAutoNativeModule] isConnected error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.warn('[AndroidAutoNativeModule] isConnected called but native module is not available');
+        return Promise.resolve(false);
+      },
   
   finishSession: isNativeModuleAvailable
-    ? AndroidAutoNativeModule.finishSession
-    : () => Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.')),
+    ? () => {
+        console.log('[AndroidAutoNativeModule] finishSession called');
+        return AndroidAutoNativeModule!.finishSession().then(() => {
+          console.log('[AndroidAutoNativeModule] finishSession completed');
+        }).catch((error) => {
+          console.error('[AndroidAutoNativeModule] finishSession error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[AndroidAutoNativeModule] finishSession called but native module is not available');
+        return Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.'));
+      },
   
   popScreen: isNativeModuleAvailable
-    ? AndroidAutoNativeModule.popScreen
-    : () => Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.')),
+    ? () => {
+        console.log('[AndroidAutoNativeModule] popScreen called');
+        return AndroidAutoNativeModule!.popScreen().then(() => {
+          console.log('[AndroidAutoNativeModule] popScreen completed');
+        }).catch((error) => {
+          console.error('[AndroidAutoNativeModule] popScreen error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[AndroidAutoNativeModule] popScreen called but native module is not available');
+        return Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.'));
+      },
   
   popToRoot: isNativeModuleAvailable
-    ? AndroidAutoNativeModule.popToRoot
-    : () => Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.')),
+    ? () => {
+        console.log('[AndroidAutoNativeModule] popToRoot called');
+        return AndroidAutoNativeModule!.popToRoot().then(() => {
+          console.log('[AndroidAutoNativeModule] popToRoot completed');
+        }).catch((error) => {
+          console.error('[AndroidAutoNativeModule] popToRoot error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[AndroidAutoNativeModule] popToRoot called but native module is not available');
+        return Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.'));
+      },
   
-  // Stub event listener method for now - will implement properly later
-  addListener: (_eventName: string, _listener: (...args: any[]) => void) => {
-    if (!isNativeModuleAvailable) {
-      console.warn('Android Auto native module is not available. Event listeners will not work.');
-    } else {
-      console.warn('Event listeners not yet implemented');
-    }
-    return { remove: () => {} };
-  }
+  // Event listener - use the native module's addListener if available
+  addListener: isNativeModuleAvailable
+    ? (eventName: string, listener: (...args: any[]) => void) => {
+        console.log(`[AndroidAutoNativeModule] addListener called: eventName=${eventName}`);
+        return AndroidAutoNativeModule!.addListener(eventName, listener);
+      }
+    : (_eventName: string, _listener: (...args: any[]) => void) => {
+        console.warn('[AndroidAutoNativeModule] addListener called but native module is not available. Event listeners will not work.');
+        return { remove: () => {} };
+      }
 };
 
-export default AndroidAutoNativeModule;
+export default AndroidAutoNativeModuleWrapper;

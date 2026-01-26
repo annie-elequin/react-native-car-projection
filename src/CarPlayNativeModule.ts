@@ -36,51 +36,151 @@ const isNativeModuleAvailable = CarPlayNativeModule != null;
 const CarPlayNativeModuleWrapper = {
   // Native module functions with fallbacks if module isn't available
   registerScreen: isNativeModuleAvailable 
-    ? CarPlayNativeModule.registerScreen
-    : () => Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.')),
-  
-  startSession: isNativeModuleAvailable
-    ? CarPlayNativeModule.startSession
-    : () => Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.')),
-  
-  navigateToScreen: isNativeModuleAvailable
-    ? (screenName: string, params?: any) => {
-        return CarPlayNativeModule!.navigateToScreen(screenName, params).catch((error) => {
-          console.error('[CarPlayNativeModule] navigateToScreen error:', error);
+    ? (config: any) => {
+        console.log('[CarPlayNativeModule] registerScreen called');
+        console.log('[CarPlayNativeModule] Screen config:', JSON.stringify(config, null, 2));
+        return CarPlayNativeModule!.registerScreen(config).then(() => {
+          console.log('[CarPlayNativeModule] registerScreen completed');
+        }).catch((error) => {
+          console.error('[CarPlayNativeModule] registerScreen error:', error);
           throw error;
         });
       }
-    : () => Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.')),
+    : () => {
+        console.error('[CarPlayNativeModule] registerScreen called but native module is not available');
+        return Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.'));
+      },
+  
+  startSession: isNativeModuleAvailable
+    ? () => {
+        console.log('[CarPlayNativeModule] startSession called');
+        return CarPlayNativeModule!.startSession().then(() => {
+          console.log('[CarPlayNativeModule] startSession completed');
+        }).catch((error) => {
+          console.error('[CarPlayNativeModule] startSession error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[CarPlayNativeModule] startSession called but native module is not available');
+        return Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.'));
+      },
+  
+  navigateToScreen: isNativeModuleAvailable
+    ? (screenName: string, params?: any) => {
+        console.log(`[CarPlayNativeModule] navigateToScreen called: screenName=${screenName}, params=`, params);
+        return CarPlayNativeModule!.navigateToScreen(screenName, params).then(() => {
+          console.log(`[CarPlayNativeModule] navigateToScreen completed: ${screenName}`);
+        }).catch((error) => {
+          console.error(`[CarPlayNativeModule] navigateToScreen error for ${screenName}:`, error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[CarPlayNativeModule] navigateToScreen called but native module is not available');
+        return Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.'));
+      },
   
   updateScreen: isNativeModuleAvailable
-    ? CarPlayNativeModule.updateScreen
-    : () => Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.')),
+    ? (screenName: string, template: any) => {
+        console.log(`[CarPlayNativeModule] updateScreen called: screenName=${screenName}`);
+        return CarPlayNativeModule!.updateScreen(screenName, template).then(() => {
+          console.log(`[CarPlayNativeModule] updateScreen completed: ${screenName}`);
+        }).catch((error) => {
+          console.error(`[CarPlayNativeModule] updateScreen error for ${screenName}:`, error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[CarPlayNativeModule] updateScreen called but native module is not available');
+        return Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.'));
+      },
   
   getCurrentScreen: isNativeModuleAvailable
-    ? CarPlayNativeModule.getCurrentScreen
-    : () => Promise.resolve(null),
+    ? () => {
+        console.log('[CarPlayNativeModule] getCurrentScreen called');
+        return CarPlayNativeModule!.getCurrentScreen().then((screen) => {
+          console.log(`[CarPlayNativeModule] getCurrentScreen result: ${screen}`);
+          return screen;
+        }).catch((error) => {
+          console.error('[CarPlayNativeModule] getCurrentScreen error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.warn('[CarPlayNativeModule] getCurrentScreen called but native module is not available');
+        return Promise.resolve(null);
+      },
   
   isConnected: isNativeModuleAvailable
-    ? CarPlayNativeModule.isConnected
-    : () => Promise.resolve(false),
+    ? () => {
+        console.log('[CarPlayNativeModule] isConnected called');
+        return CarPlayNativeModule!.isConnected().then((connected) => {
+          console.log(`[CarPlayNativeModule] isConnected result: ${connected}`);
+          return connected;
+        }).catch((error) => {
+          console.error('[CarPlayNativeModule] isConnected error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.warn('[CarPlayNativeModule] isConnected called but native module is not available');
+        return Promise.resolve(false);
+      },
   
   finishSession: isNativeModuleAvailable
-    ? CarPlayNativeModule.finishSession
-    : () => Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.')),
+    ? () => {
+        console.log('[CarPlayNativeModule] finishSession called');
+        return CarPlayNativeModule!.finishSession().then(() => {
+          console.log('[CarPlayNativeModule] finishSession completed');
+        }).catch((error) => {
+          console.error('[CarPlayNativeModule] finishSession error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[CarPlayNativeModule] finishSession called but native module is not available');
+        return Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.'));
+      },
   
   popScreen: isNativeModuleAvailable
-    ? CarPlayNativeModule.popScreen
-    : () => Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.')),
+    ? () => {
+        console.log('[CarPlayNativeModule] popScreen called');
+        return CarPlayNativeModule!.popScreen().then(() => {
+          console.log('[CarPlayNativeModule] popScreen completed');
+        }).catch((error) => {
+          console.error('[CarPlayNativeModule] popScreen error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[CarPlayNativeModule] popScreen called but native module is not available');
+        return Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.'));
+      },
   
   popToRoot: isNativeModuleAvailable
-    ? CarPlayNativeModule.popToRoot
-    : () => Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.')),
+    ? () => {
+        console.log('[CarPlayNativeModule] popToRoot called');
+        return CarPlayNativeModule!.popToRoot().then(() => {
+          console.log('[CarPlayNativeModule] popToRoot completed');
+        }).catch((error) => {
+          console.error('[CarPlayNativeModule] popToRoot error:', error);
+          throw error;
+        });
+      }
+    : () => {
+        console.error('[CarPlayNativeModule] popToRoot called but native module is not available');
+        return Promise.reject(new Error('CarPlay native module is not available. Make sure the native module is properly linked.'));
+      },
   
   // Event listener - use the native module's addListener if available
   addListener: isNativeModuleAvailable
-    ? CarPlayNativeModule.addListener
+    ? (eventName: string, listener: (...args: any[]) => void) => {
+        console.log(`[CarPlayNativeModule] addListener called: eventName=${eventName}`);
+        return CarPlayNativeModule!.addListener(eventName, listener);
+      }
     : (_eventName: string, _listener: (...args: any[]) => void) => {
-        console.warn('CarPlay native module is not available. Event listeners will not work.');
+        console.warn('[CarPlayNativeModule] addListener called but native module is not available. Event listeners will not work.');
         return { remove: () => {} };
       }
 };

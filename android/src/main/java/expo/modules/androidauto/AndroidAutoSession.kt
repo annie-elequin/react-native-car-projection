@@ -54,15 +54,20 @@ class AndroidAutoSession : Session(), DefaultLifecycleObserver {
     fun getCurrentScreenName(): String? = currentScreenName
 
     fun navigateToScreen(screenName: String, params: Map<String, Any>?) {
+        android.util.Log.d("AndroidAuto", "navigateToScreen called: screenName=$screenName, params=$params")
         val registeredScreens = AndroidAutoCarAppService.getRegisteredScreens()
+        android.util.Log.d("AndroidAuto", "Available screens: ${registeredScreens.keys.joinToString()}")
         val screenConfig = registeredScreens[screenName] 
             ?: throw IllegalArgumentException("Screen '$screenName' not found")
 
+        android.util.Log.d("AndroidAuto", "Screen found, navigating...")
         currentScreenName = screenName
         screenStack.add(screenName)
+        android.util.Log.d("AndroidAuto", "Screen stack after push: ${screenStack.joinToString(" -> ")}")
         
         val screen = createCarScreen(screenName, screenConfig, params)
         carContext.getCarService(androidx.car.app.ScreenManager::class.java).push(screen)
+        android.util.Log.d("AndroidAuto", "Screen pushed to ScreenManager")
         
         AndroidAutoCarAppService.sendEventToJS("onScreenChanged", screenName)
     }
@@ -78,22 +83,29 @@ class AndroidAutoSession : Session(), DefaultLifecycleObserver {
     }
 
     fun popScreen() {
+        android.util.Log.d("AndroidAuto", "popScreen called. Current stack size: ${screenStack.size}")
         if (screenStack.size > 1) {
             screenStack.removeLastOrNull()
+            android.util.Log.d("AndroidAuto", "Screen stack after pop: ${screenStack.joinToString(" -> ")}")
             carContext.getCarService(androidx.car.app.ScreenManager::class.java).pop()
             
             currentScreenName = screenStack.lastOrNull()
+            android.util.Log.d("AndroidAuto", "Popped to screen: $currentScreenName")
             AndroidAutoCarAppService.sendEventToJS("onScreenChanged", currentScreenName)
+        } else {
+            android.util.Log.w("AndroidAuto", "Cannot pop screen: stack size is ${screenStack.size}")
         }
     }
 
     fun popToRoot() {
+        android.util.Log.d("AndroidAuto", "popToRoot called. Current stack size: ${screenStack.size}, stack: ${screenStack.joinToString(" -> ")}")
         while (screenStack.size > 1) {
             screenStack.removeLastOrNull()
             carContext.getCarService(androidx.car.app.ScreenManager::class.java).pop()
         }
         
         currentScreenName = screenStack.firstOrNull()
+        android.util.Log.d("AndroidAuto", "Popped to root screen: $currentScreenName")
         AndroidAutoCarAppService.sendEventToJS("onScreenChanged", currentScreenName)
     }
 
@@ -271,7 +283,7 @@ class AndroidAutoScreen(
         android.util.Log.d("AndroidAuto", "Row itemId: $itemId")
         if (itemId != null) {
             rowBuilder.setOnClickListener {
-                android.util.Log.d("AndroidAuto", "Row clicked: $itemId")
+                android.util.Log.d("AndroidAuto", "Row clicked: $itemId on screen: $screenName")
                 // Create a clean map with only serializable data
                 val serializableData = mutableMapOf<String, Any>()
                 rowConfig.forEach { (key, value) ->
@@ -290,12 +302,22 @@ class AndroidAutoScreen(
                 // Always include id
                 serializableData["id"] = itemId
                 
-                AndroidAutoCarAppService.sendEventToJS("onUserInteraction", mapOf(
+                android.util.Log.d("AndroidAuto", "Preparing to send onUserInteraction event")
+                android.util.Log.d("AndroidAuto", "Event data structure: action=rowPress, screen=$screenName, data.id=$itemId")
+                android.util.Log.d("AndroidAuto", "Full serializableData keys: ${serializableData.keys.joinToString()}")
+                android.util.Log.d("AndroidAuto", "serializableData[id]: ${serializableData["id"]}")
+                
+                val eventData = mapOf(
                     "action" to "rowPress",
                     "screen" to screenName,
                     "data" to serializableData
-                ))
+                )
+                android.util.Log.d("AndroidAuto", "Sending onUserInteraction event with full structure: $eventData")
+                
+                AndroidAutoCarAppService.sendEventToJS("onUserInteraction", eventData)
             }
+        } else {
+            android.util.Log.w("AndroidAuto", "Row has no itemId, click listener will not be set. Row config keys: ${rowConfig.keys.joinToString()}")
         }
 
         android.util.Log.d("AndroidAuto", "Building row")
@@ -308,16 +330,26 @@ class AndroidAutoScreen(
 
         // Add click listener - check for id instead of onPress
         val actionId = actionConfig["id"] as? String
+        android.util.Log.d("AndroidAuto", "Action itemId: $actionId")
         if (actionId != null) {
             actionBuilder.setOnClickListener {
+                android.util.Log.d("AndroidAuto", "Action clicked: $actionId on screen: $screenName")
                 // Send only serializable data (no functions)
                 val serializableData = actionConfig.filterKeys { it != "onPress" }
-                AndroidAutoCarAppService.sendEventToJS("onUserInteraction", mapOf(
+                android.util.Log.d("AndroidAuto", "Preparing to send onUserInteraction event for action")
+                android.util.Log.d("AndroidAuto", "Event data structure: action=actionPress, screen=$screenName, data.id=$actionId")
+                
+                val eventData = mapOf(
                     "action" to "actionPress",
                     "screen" to screenName,
                     "data" to serializableData
-                ))
+                )
+                android.util.Log.d("AndroidAuto", "Sending onUserInteraction event for action with full structure: $eventData")
+                
+                AndroidAutoCarAppService.sendEventToJS("onUserInteraction", eventData)
             }
+        } else {
+            android.util.Log.w("AndroidAuto", "Action has no actionId, click listener will not be set. Action config keys: ${actionConfig.keys.joinToString()}")
         }
 
         // Add icon if present

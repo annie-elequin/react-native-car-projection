@@ -29,9 +29,14 @@ public class CarPlaySession: NSObject, CPInterfaceControllerDelegate {
   
   func registerScreen(screenConfig: [String: Any]) throws {
     guard let name = screenConfig["name"] as? String else {
+      print("[CarPlay] registerScreen error: Screen name is required")
       throw NSError(domain: "CarPlayModule", code: 1, userInfo: [NSLocalizedDescriptionKey: "Screen name is required"])
     }
+    let template = screenConfig["template"] as? [String: Any]
+    let templateType = template?["type"] as? String ?? "unknown"
+    print("[CarPlay] registerScreen called: name=\(name), templateType=\(templateType)")
     registeredScreens[name] = screenConfig
+    print("[CarPlay] Screen registered successfully. Total screens: \(registeredScreens.count)")
   }
   
   func getRegisteredScreens() -> [String: [String: Any]] {
@@ -39,19 +44,27 @@ public class CarPlaySession: NSObject, CPInterfaceControllerDelegate {
   }
   
   func navigateToScreen(screenName: String, params: [String: Any]?) throws {
+    print("[CarPlay] navigateToScreen called: screenName=\(screenName), params=\(params ?? [:])")
+    print("[CarPlay] Available screens: \(registeredScreens.keys.joined(separator: ", "))")
+    
     guard let screenConfig = registeredScreens[screenName] else {
+      print("[CarPlay] navigateToScreen error: Screen '\(screenName)' not found")
       throw NSError(domain: "CarPlayModule", code: 2, userInfo: [NSLocalizedDescriptionKey: "Screen '\(screenName)' not found"])
     }
     
     guard let interfaceController = interfaceController else {
+      print("[CarPlay] navigateToScreen error: CarPlay interface controller not available")
       throw NSError(domain: "CarPlayModule", code: 3, userInfo: [NSLocalizedDescriptionKey: "CarPlay interface controller not available"])
     }
     
+    print("[CarPlay] Screen found, navigating...")
     currentScreenName = screenName
     screenStack.append(screenName)
+    print("[CarPlay] Screen stack after push: \(screenStack.joined(separator: " -> "))")
     
     let template = try CarPlayTemplateBuilder.buildTemplate(from: screenConfig, screenName: screenName, params: params)
     interfaceController.pushTemplate(template, animated: true)
+    print("[CarPlay] Template pushed to interface controller")
     
     sendEventToJS("onScreenChanged", data: screenName)
   }
@@ -83,19 +96,25 @@ public class CarPlaySession: NSObject, CPInterfaceControllerDelegate {
   }
   
   func popScreen() {
+    print("[CarPlay] popScreen called. Current stack size: \(screenStack.count)")
     guard let interfaceController = interfaceController, screenStack.count > 1 else {
+      print("[CarPlay] popScreen: Cannot pop - stack size is \(screenStack.count)")
       return
     }
     
     screenStack.removeLast()
+    print("[CarPlay] Screen stack after pop: \(screenStack.joined(separator: " -> "))")
     interfaceController.popTemplate(animated: true)
     
     currentScreenName = screenStack.last
+    print("[CarPlay] Popped to screen: \(currentScreenName ?? "nil")")
     sendEventToJS("onScreenChanged", data: currentScreenName)
   }
   
   func popToRoot() {
+    print("[CarPlay] popToRoot called. Current stack size: \(screenStack.count), stack: \(screenStack.joined(separator: " -> "))")
     guard let interfaceController = interfaceController else {
+      print("[CarPlay] popToRoot: Interface controller not available")
       return
     }
     
@@ -105,6 +124,7 @@ public class CarPlaySession: NSObject, CPInterfaceControllerDelegate {
     }
     
     currentScreenName = screenStack.first
+    print("[CarPlay] Popped to root screen: \(currentScreenName ?? "nil")")
     sendEventToJS("onScreenChanged", data: currentScreenName)
   }
   
@@ -118,38 +138,51 @@ public class CarPlaySession: NSObject, CPInterfaceControllerDelegate {
   }
   
   func onCarPlayConnected(interfaceController: CPInterfaceController) {
+    print("[CarPlay] onCarPlayConnected called")
     self.interfaceController = interfaceController
     interfaceController.delegate = self
     isSessionActive = true
+    print("[CarPlay] Session activated. Registered screens: \(registeredScreens.keys.joined(separator: ", "))")
     
     // Find root screen
     let rootScreenName = registeredScreens.keys.first { $0 == "root" } ?? registeredScreens.keys.first
+    print("[CarPlay] Root screen name: \(rootScreenName ?? "nil")")
     
     if let rootScreenName = rootScreenName, let screenConfig = registeredScreens[rootScreenName] {
       do {
         currentScreenName = rootScreenName
         screenStack = [rootScreenName]
+        print("[CarPlay] Setting root template for: \(rootScreenName)")
         
         let rootTemplate = try CarPlayTemplateBuilder.buildTemplate(from: screenConfig, screenName: rootScreenName, params: nil)
         interfaceController.setRootTemplate(rootTemplate, animated: true)
+        print("[CarPlay] Root template set successfully")
         
         sendEventToJS("onSessionStarted", data: nil)
         sendEventToJS("onScreenChanged", data: rootScreenName)
       } catch {
         print("[CarPlay] Error creating root template: \(error)")
       }
+    } else {
+      print("[CarPlay] No root screen found or screen config missing")
     }
   }
   
   func onCarPlayDisconnected() {
+    print("[CarPlay] onCarPlayDisconnected called")
     isSessionActive = false
     interfaceController = nil
     currentScreenName = nil
     screenStack = []
+    print("[CarPlay] Session deactivated and cleaned up")
     sendEventToJS("onSessionEnded", data: nil)
   }
   
   private func sendEventToJS(_ eventName: String, data: Any?) {
+    print("[CarPlay] sendEventToJS called: eventName=\(eventName)")
+    print("[CarPlay] Event data type: \(type(of: data))")
+    print("[CarPlay] Event data: \(data ?? "nil")")
+    
     guard let moduleInstance = moduleInstance else {
       print("[CarPlay] Cannot send event: moduleInstance is null")
       return
@@ -165,7 +198,9 @@ public class CarPlaySession: NSObject, CPInterfaceControllerDelegate {
       }
     }()
     
+    print("[CarPlay] Sending event to JS with data: \(eventData)")
     moduleInstance.sendEvent(eventName, eventData)
+    print("[CarPlay] Event sent successfully")
   }
   
   // MARK: - CPInterfaceControllerDelegate
