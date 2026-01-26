@@ -1,4 +1,4 @@
-const { withInfoPlist, withEntitlements } = require('@expo/config-plugins');
+const { withInfoPlist, withEntitlementsPlist } = require('@expo/config-plugins');
 
 const withCarPlay = (config, options = {}) => {
   const {
@@ -28,7 +28,7 @@ const withCarPlay = (config, options = {}) => {
 
     const sceneConfigs = infoPlist.UISceneConfigurations['UIWindowSceneSessionRoleApplication'];
     const existingCarPlayScene = sceneConfigs.find(
-      (scene: any) => scene?.UISceneConfigurationName === 'CarPlay'
+      (scene) => scene?.UISceneConfigurationName === 'CarPlay'
     );
 
     if (!existingCarPlayScene) {
@@ -55,7 +55,7 @@ const withCarPlay = (config, options = {}) => {
   });
 
   // Configure entitlements for CarPlay
-  config = withEntitlements(config, (config) => {
+  config = withEntitlementsPlist(config, (config) => {
     const entitlements = config.modResults;
 
     // Add CarPlay capability
