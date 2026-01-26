@@ -74,13 +74,6 @@ public class CarPlayTemplateBuilder {
     
     let template = CPListTemplate(title: title, sections: sections)
     
-    // Add header action if present
-    if let headerAction = config["headerAction"] as? [String: Any] {
-      template.tabBarTemplate = nil // Clear tab bar if we have header action
-      // Note: CarPlay doesn't support header actions the same way Android Auto does
-      // This would need to be handled differently
-    }
-    
     return template
   }
   

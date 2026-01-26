@@ -13,7 +13,6 @@ public class CarPlaySceneDelegate: UIResponder, CPTemplateApplicationSceneDelega
                                       didConnect interfaceController: CPInterfaceController) {
     print("[CarPlay] templateApplicationScene didConnect called")
     self.interfaceController = interfaceController
-    CarPlaySession.shared.setInterfaceController(interfaceController)
     CarPlaySession.shared.onCarPlayConnected(interfaceController: interfaceController)
     print("[CarPlay] CarPlay connection completed")
   }

@@ -8,7 +8,6 @@ const withCarProjection = (config, options = {}) => {
   const {
     carAppCategory = 'media',
     minCarApiLevel = 1,
-    targetCarApiLevel = 6,
     customPermissions = [],
     javaVersion = 'VERSION_17' // Default to JVM 17 for modern RN projects
   } = options;
