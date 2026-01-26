@@ -329,7 +329,7 @@ class AndroidAuto {
    */
   addScreenChangedListener(listener: (screenName: string) => void): Subscription {
     return AndroidAutoModule.addListener('onScreenChanged', (event: any) => {
-      listener(event.data);
+      listener(event.screen);
     });
   }
 
@@ -338,9 +338,7 @@ class AndroidAuto {
    */
   addUserInteractionListener(listener: (action: string, data: any) => void): Subscription {
     return AndroidAutoModule.addListener('onUserInteraction', (event: any) => {
-      // Expo Modules passes the event data directly as the second parameter
-      // The event might be the data itself, or wrapped in an object
-      const interactionData = (event?.action ? event : (event?.data || event)) as UserInteractionData;
+      const interactionData = event as UserInteractionData;
       const screenName = interactionData.screen;
       const itemId = interactionData.data?.id;
       

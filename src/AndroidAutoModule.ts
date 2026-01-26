@@ -43,12 +43,7 @@ const AndroidAutoModule = {
     : () => Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.')),
   
   navigateToScreen: isNativeModuleAvailable
-    ? (screenName: string, params?: any) => {
-        return AndroidAutoNativeModule!.navigateToScreen(screenName, params).catch((error) => {
-          console.error('[AndroidAutoModule] navigateToScreen error:', error);
-          throw error;
-        });
-      }
+    ? AndroidAutoNativeModule.navigateToScreen
     : () => Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.')),
   
   updateScreen: isNativeModuleAvailable

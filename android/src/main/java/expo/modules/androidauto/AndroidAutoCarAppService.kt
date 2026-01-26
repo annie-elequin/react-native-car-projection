@@ -29,8 +29,9 @@ class AndroidAutoCarAppService : CarAppService() {
         fun getRegisteredScreens(): Map<String, Map<String, Any>> = registeredScreens
 
         fun navigateToScreen(screenName: String, params: Map<String, Any>? = null) {
-            currentSession?.navigateToScreen(screenName, params)
-                ?: android.util.Log.e("AndroidAuto", "Cannot navigate: no active session")
+            val session = currentSession
+                ?: throw IllegalStateException("Cannot navigate: no active session")
+            session.navigateToScreen(screenName, params)
         }
 
         fun updateScreen(screenName: String, template: Map<String, Any>) {
@@ -63,13 +64,17 @@ class AndroidAutoCarAppService : CarAppService() {
                     android.util.Log.e("AndroidAuto", "Cannot send event: moduleInstance is null")
                     return
                 }
-                // Expo Modules sendEvent expects a Map<String, Any?>
-                // Pass the data directly if it's already a Map, otherwise wrap it
-                val eventData: Map<String, Any?> = when (data) {
-                    is Map<*, *> -> {
+                // Pass the data directly if it's already a Map. For specific events like
+                // screen changes, construct a Map so it is not wrapped under "value".
+                val eventData: Map<String, Any?> = when {
+                    data is Map<*, *> -> {
                         // If it's already a Map, cast it and ensure values are nullable
                         @Suppress("UNCHECKED_CAST")
                         data as Map<String, Any?>
+                    }
+                    // Special-case screen change events: send as a Map instead of wrapping
+                    eventName == "onScreenChanged" && data is String -> {
+                        mapOf("screen" to data)
                     }
                     null -> emptyMap()
                     else -> mapOf("value" to data)

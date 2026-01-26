@@ -227,15 +227,12 @@ class AndroidAutoScreen(
     }
 
     private fun createRow(rowConfig: Map<String, Any>): Row {
-        android.util.Log.d("AndroidAuto", "createRow called with keys: ${rowConfig.keys.joinToString()}")
         val title = rowConfig["title"] as? String ?: "Row"
-        android.util.Log.d("AndroidAuto", "Row title: $title")
         val rowBuilder = Row.Builder().setTitle(title)
 
         // Add texts
         val texts = rowConfig["texts"] as? List<String>
         if (texts != null && texts.isNotEmpty()) {
-            android.util.Log.d("AndroidAuto", "Adding ${texts.size} text lines")
             texts.forEachIndexed { index, text ->
                 when (index) {
                     0 -> rowBuilder.addText(text)
@@ -246,10 +243,8 @@ class AndroidAutoScreen(
 
         // Add click listener - check for id instead of onPress
         val itemId = rowConfig["id"] as? String
-        android.util.Log.d("AndroidAuto", "Row itemId: $itemId")
         if (itemId != null) {
             rowBuilder.setOnClickListener {
-                android.util.Log.d("AndroidAuto", "Row clicked: $itemId on screen: $screenName")
                 // Create a clean map with only serializable data
                 val serializableData = mutableMapOf<String, Any>()
                 rowConfig.forEach { (key, value) ->
@@ -268,18 +263,15 @@ class AndroidAutoScreen(
                 // Always include id
                 serializableData["id"] = itemId
                 
-                android.util.Log.d("AndroidAuto", "Preparing to send onUserInteraction event")
                 val eventData = mapOf(
                     "action" to "rowPress",
                     "screen" to screenName,
                     "data" to serializableData
                 )
-                android.util.Log.d("AndroidAuto", "Event data: $eventData")
                 AndroidAutoCarAppService.sendEventToJS("onUserInteraction", eventData)
             }
         }
 
-        android.util.Log.d("AndroidAuto", "Building row")
         return rowBuilder.build()
     }
 
