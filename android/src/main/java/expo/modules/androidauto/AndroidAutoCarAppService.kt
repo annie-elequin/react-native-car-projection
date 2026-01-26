@@ -21,27 +21,16 @@ class AndroidAutoCarAppService : CarAppService() {
         }
 
         fun registerScreen(screenConfig: Map<String, Any>) {
-            android.util.Log.d("AndroidAuto", "registerScreen called")
             val name = screenConfig["name"] as? String 
                 ?: throw IllegalArgumentException("Screen name is required")
-            android.util.Log.d("AndroidAuto", "Registering screen: $name")
-            
-            // Log template type
-            val template = screenConfig["template"] as? Map<String, Any>
-            if (template != null) {
-                android.util.Log.d("AndroidAuto", "Template type: ${template["type"]}")
-                val items = template["items"] as? List<*>
-                android.util.Log.d("AndroidAuto", "Items count: ${items?.size ?: 0}")
-            }
-            
             registeredScreens[name] = screenConfig
-            android.util.Log.d("AndroidAuto", "Screen registered successfully. Total screens: ${registeredScreens.size}")
         }
 
         fun getRegisteredScreens(): Map<String, Map<String, Any>> = registeredScreens
 
         fun navigateToScreen(screenName: String, params: Map<String, Any>? = null) {
             currentSession?.navigateToScreen(screenName, params)
+                ?: android.util.Log.e("AndroidAuto", "Cannot navigate: no active session")
         }
 
         fun updateScreen(screenName: String, template: Map<String, Any>) {
@@ -70,10 +59,26 @@ class AndroidAutoCarAppService : CarAppService() {
 
         fun sendEventToJS(eventName: String, data: Any?) {
             try {
-                moduleInstance?.sendEvent(eventName, mapOf("data" to data))
+                if (moduleInstance == null) {
+                    android.util.Log.e("AndroidAuto", "Cannot send event: moduleInstance is null")
+                    return
+                }
+                // Expo Modules sendEvent expects a Map<String, Any?>
+                // Pass the data directly if it's already a Map, otherwise wrap it
+                val eventData: Map<String, Any?> = when (data) {
+                    is Map<*, *> -> {
+                        // If it's already a Map, cast it and ensure values are nullable
+                        @Suppress("UNCHECKED_CAST")
+                        data as Map<String, Any?>
+                    }
+                    null -> emptyMap()
+                    else -> mapOf("value" to data)
+                }
+                moduleInstance?.sendEvent(eventName, eventData)
             } catch (e: Exception) {
                 // Log error but don't crash
-                android.util.Log.e("AndroidAutoCarAppService", "Failed to send event to JS: ${e.message}")
+                android.util.Log.e("AndroidAutoCarAppService", "Failed to send event to JS: ${e.message}", e)
+                e.printStackTrace()
             }
         }
 

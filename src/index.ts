@@ -248,14 +248,8 @@ class AndroidAuto {
    * Register a screen with its template configuration
    */
   async registerScreen(screenConfig: ScreenConfig): Promise<void> {
-    console.log('[AndroidAuto] registerScreen called for:', screenConfig.name);
-    console.log('[AndroidAuto] Template type:', screenConfig.template.type);
-    
     // Strip callbacks before sending to native
     const preparedConfig = prepareScreenConfigForNative(screenConfig);
-    console.log('[AndroidAuto] Prepared config (without callbacks):', JSON.stringify(preparedConfig, null, 2));
-    console.log('[AndroidAuto] Stored callbacks count:', callbackStore.get(screenConfig.name)?.size || 0);
-    
     return AndroidAutoModule.registerScreen(preparedConfig);
   }
 
@@ -344,7 +338,9 @@ class AndroidAuto {
    */
   addUserInteractionListener(listener: (action: string, data: any) => void): Subscription {
     return AndroidAutoModule.addListener('onUserInteraction', (event: any) => {
-      const interactionData = event.data as UserInteractionData;
+      // Expo Modules passes the event data directly as the second parameter
+      // The event might be the data itself, or wrapped in an object
+      const interactionData = (event?.action ? event : (event?.data || event)) as UserInteractionData;
       const screenName = interactionData.screen;
       const itemId = interactionData.data?.id;
       
@@ -353,7 +349,11 @@ class AndroidAuto {
         const screenCallbacks = callbackStore.get(screenName);
         const callback = screenCallbacks?.get(itemId);
         if (callback) {
-          callback();
+          try {
+            callback();
+          } catch (e) {
+            console.error('[AndroidAuto] Error executing callback:', e);
+          }
         }
       }
       

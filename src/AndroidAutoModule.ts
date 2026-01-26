@@ -43,7 +43,12 @@ const AndroidAutoModule = {
     : () => Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.')),
   
   navigateToScreen: isNativeModuleAvailable
-    ? AndroidAutoNativeModule.navigateToScreen
+    ? (screenName: string, params?: any) => {
+        return AndroidAutoNativeModule!.navigateToScreen(screenName, params).catch((error) => {
+          console.error('[AndroidAutoModule] navigateToScreen error:', error);
+          throw error;
+        });
+      }
     : () => Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.')),
   
   updateScreen: isNativeModuleAvailable
@@ -70,15 +75,13 @@ const AndroidAutoModule = {
     ? AndroidAutoNativeModule.popToRoot
     : () => Promise.reject(new Error('Android Auto native module is not available. Make sure the native module is properly linked.')),
   
-  // Stub event listener method for now - will implement properly later
-  addListener: (_eventName: string, _listener: (...args: any[]) => void) => {
-    if (!isNativeModuleAvailable) {
-      console.warn('Android Auto native module is not available. Event listeners will not work.');
-    } else {
-      console.warn('Event listeners not yet implemented');
-    }
-    return { remove: () => {} };
-  }
+  // Event listener - use the native module's addListener if available
+  addListener: isNativeModuleAvailable
+    ? AndroidAutoNativeModule.addListener
+    : (_eventName: string, _listener: (...args: any[]) => void) => {
+        console.warn('Android Auto native module is not available. Event listeners will not work.');
+        return { remove: () => {} };
+      }
 };
 
 export default AndroidAutoModule;

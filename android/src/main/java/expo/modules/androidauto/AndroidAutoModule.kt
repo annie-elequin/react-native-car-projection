@@ -3,6 +3,8 @@ package expo.modules.androidauto
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.kotlin.Promise
+import android.os.Handler
+import android.os.Looper
 
 /**
  * Main Expo module for Android Auto integration
@@ -10,6 +12,9 @@ import expo.modules.kotlin.Promise
 class AndroidAutoModule : Module() {
   override fun definition() = ModuleDefinition {
     Name("AndroidAuto")
+
+    // Define events that can be sent to JavaScript
+    Events("onSessionStarted", "onSessionEnded", "onScreenChanged", "onUserInteraction")
 
     // Initialize the module
     OnCreate {
@@ -38,13 +43,16 @@ class AndroidAutoModule : Module() {
       }
     }
 
-    // Navigate to a specific screen
+    // Navigate to a specific screen - must run on main thread for ScreenManager
     AsyncFunction("navigateToScreen") { screenName: String, params: Map<String, Any>?, promise: Promise ->
-      try {
-        AndroidAutoCarAppService.navigateToScreen(screenName, params)
-        promise.resolve(null)
-      } catch (e: Exception) {
-        promise.reject("NAVIGATE_ERROR", "Failed to navigate to screen: ${e.message}", e)
+      val mainHandler = Handler(Looper.getMainLooper())
+      mainHandler.post {
+        try {
+          AndroidAutoCarAppService.navigateToScreen(screenName, params)
+          promise.resolve(null)
+        } catch (e: Exception) {
+          promise.reject("NAVIGATE_ERROR", "Failed to navigate to screen: ${e.message}", e)
+        }
       }
     }
 
@@ -88,23 +96,29 @@ class AndroidAutoModule : Module() {
       }
     }
 
-    // Pop back one screen
+    // Pop back one screen - must run on main thread for ScreenManager
     AsyncFunction("popScreen") { promise: Promise ->
-      try {
-        AndroidAutoCarAppService.popScreen()
-        promise.resolve(null)
-      } catch (e: Exception) {
-        promise.reject("POP_SCREEN_ERROR", "Failed to pop screen: ${e.message}", e)
+      val mainHandler = Handler(Looper.getMainLooper())
+      mainHandler.post {
+        try {
+          AndroidAutoCarAppService.popScreen()
+          promise.resolve(null)
+        } catch (e: Exception) {
+          promise.reject("POP_SCREEN_ERROR", "Failed to pop screen: ${e.message}", e)
+        }
       }
     }
 
-    // Pop to root screen
+    // Pop to root screen - must run on main thread for ScreenManager
     AsyncFunction("popToRoot") { promise: Promise ->
-      try {
-        AndroidAutoCarAppService.popToRoot()
-        promise.resolve(null)
-      } catch (e: Exception) {
-        promise.reject("POP_TO_ROOT_ERROR", "Failed to pop to root: ${e.message}", e)
+      val mainHandler = Handler(Looper.getMainLooper())
+      mainHandler.post {
+        try {
+          AndroidAutoCarAppService.popToRoot()
+          promise.resolve(null)
+        } catch (e: Exception) {
+          promise.reject("POP_TO_ROOT_ERROR", "Failed to pop to root: ${e.message}", e)
+        }
       }
     }
   }
