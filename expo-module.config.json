@@ -1,7 +1,10 @@
 {
-  "platforms": ["android"],
+  "platforms": ["android", "ios"],
   "android": {
-    "modules": ["expo.modules.androidauto.AndroidAutoModule"]
+    "modules": ["expo.modules.carprojection.CarProjectionModule"]
+  },
+  "ios": {
+    "modules": ["expo.modules.carplay.CarPlayModule"]
   },
   "dependencyOnlyInjection": {
     "supported": true,

@@ -2,25 +2,27 @@
 
 ## ⚠️ NOTE: I am not a native mobile developer, so I vibe-coded this for my own purposes. Use at your own risk.
 
-A modern React Native module for integrating Android Auto and CarPlay functionality using the Car App Library and Expo Modules API. Built for Expo SDK 53+ with React Native 0.79 and React 19 support.
+A modern React Native module for integrating Android Auto and CarPlay functionality using a unified API. Built for Expo SDK 53+ with React Native 0.79 and React 19 support.
 
 ## 🚀 Features
 
-- ✅ **Modern Architecture**: Built with Expo Modules API and Android Car App Library
+- ✅ **Unified API**: Single API for both Android Auto and CarPlay - write once, works on both platforms
+- ✅ **Modern Architecture**: Built with Expo Modules API, Android Car App Library, and iOS CarPlay framework
 - ✅ **Expo SDK 53+ Compatible**: Works with React Native 0.79 and React 19
 - ✅ **TypeScript Support**: Full TypeScript definitions included
 - ✅ **Template System**: ListTemplate, MessageTemplate, and more
 - ✅ **Easy Integration**: Simple setup with config plugin
 - ✅ **Event Handling**: React to user interactions and navigation changes
 - ✅ **New Architecture Ready**: Supports React Native's new architecture
+- ✅ **Cross-Platform**: Automatically routes to Android Auto or CarPlay based on platform
 
 ## 📋 Prerequisites
 
 - Expo SDK 53 or later
 - React Native 0.79+
 - React 19+
-- Android API level 23+
-- Android Auto app installed on device
+- **Android**: Android API level 23+, Android Auto app installed on device
+- **iOS**: iOS 14.0+, CarPlay-compatible device or simulator
 
 ## 🏁 Installation
 
@@ -43,9 +45,14 @@ Add the plugin to your `app.json` or `expo.json`:
       [
         "react-native-car-projection",
         {
-          "carAppCategory": "navigation",
-          "minCarApiLevel": 1,
-          "targetCarApiLevel": 6
+          "android": {
+            "carAppCategory": "media",
+            "minCarApiLevel": 1,
+            "targetCarApiLevel": 6
+          },
+          "ios": {
+            "carAppCategory": "navigation"
+          }
         }
       ]
     ]
@@ -56,8 +63,13 @@ Add the plugin to your `app.json` or `expo.json`:
 ### 3. Rebuild your app
 
 ```bash
+# For Android
 npx expo prebuild --clean
 npx expo run:android
+
+# For iOS
+npx expo prebuild --clean
+npx expo run:ios
 ```
 
 ## 🎯 Quick Start

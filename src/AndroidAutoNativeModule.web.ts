@@ -1,5 +1,5 @@
-// Web implementation - Android Auto is not available on web
-const AndroidAutoModule = {
+// Web implementation - Car Projection is not available on web
+const AndroidAutoNativeModule = {
   registerScreen: () => Promise.reject(new Error('Android Auto is not available on web')),
   startSession: () => Promise.reject(new Error('Android Auto is not available on web')),
   navigateToScreen: () => Promise.reject(new Error('Android Auto is not available on web')),
@@ -12,4 +12,4 @@ const AndroidAutoModule = {
   addListener: () => ({ remove: () => {} }), // Stub for event listeners
 };
 
-export default AndroidAutoModule;
+export default AndroidAutoNativeModule;
