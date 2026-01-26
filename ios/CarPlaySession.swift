@@ -75,9 +75,21 @@ public class CarPlaySession: NSObject, CPInterfaceControllerDelegate {
         throw NSError(domain: "CarPlayModule", code: 3, userInfo: [NSLocalizedDescriptionKey: "CarPlay interface controller not available"])
       }
       
-      // Update the current screen template
-      let updatedTemplate = try CarPlayTemplateBuilder.buildTemplate(from: ["name": screenName, "template": template], screenName: screenName, params: nil)
-      interfaceController.pushTemplate(updatedTemplate, animated: true)
+      // Update the current screen template without growing the navigation stack
+      let updatedTemplate = try CarPlayTemplateBuilder.buildTemplate(
+        from: ["name": screenName, "template": template],
+        screenName: screenName,
+        params: nil
+      )
+      
+      // If this is the root screen, replace the root template
+      if screenStack.count == 1 {
+        interfaceController.setRootTemplate(updatedTemplate, animated: true)
+      } else {
+        // Otherwise, replace the top template while preserving the stack depth
+        interfaceController.popTemplate(animated: false)
+        interfaceController.pushTemplate(updatedTemplate, animated: true)
+      }
     }
   }
   

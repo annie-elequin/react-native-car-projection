@@ -13,14 +13,14 @@ const AndroidAutoNativeModule = requireOptionalNativeModule<{
   popScreen: () => Promise<void>;
   popToRoot: () => Promise<void>;
   addListener: (eventName: string, listener: (...args: any[]) => void) => { remove: () => void };
-}>('AndroidAuto');
+}>('CarProjection');
 
 // Debug: Log module availability
 if (__DEV__) {
   if (AndroidAutoNativeModule) {
-    console.log('[AndroidAuto] Native module loaded successfully');
+    console.log('[AndroidAuto] Native module (CarProjection) loaded successfully');
   } else {
-    console.warn('[AndroidAuto] Native module not found. This usually means:');
+    console.warn('[AndroidAuto] Native module (CarProjection) not found. This usually means:');
     console.warn('  1. The app needs to be built and run with: npx expo run:android');
     console.warn('  2. Do NOT use "expo start" + QR code (Expo Go doesn\'t support custom native modules)');
     console.warn('  3. The Expo config plugin may not have been applied properly');

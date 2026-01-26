@@ -477,9 +477,24 @@ class CarProjection {
       console.log('[CarProjection] onUserInteraction event received');
       console.log('[CarProjection] Raw event data:', JSON.stringify(event, null, 2));
       
-      // Expo Modules passes the event data directly as the second parameter
-      // The event might be the data itself, or wrapped in an object
-      const interactionData = (event?.action ? event : (event?.data || event)) as UserInteractionData;
+      // Expo Modules passes the event data directly as the second parameter.
+      // We expect the event to conform to UserInteractionData. If we detect a
+      // wrapped format, we normalize it and log a warning so that the source
+      // can be updated to use the canonical shape.
+      let interactionData: UserInteractionData | undefined;
+
+      if (event && typeof event === "object" && "action" in event) {
+        // Canonical format: the event itself is the interaction data.
+        interactionData = event as UserInteractionData;
+      } else if (event && typeof event === "object" && "data" in event && event.data && typeof event.data === "object" && "action" in event.data) {
+        // Legacy/wrapped format: { data: UserInteractionData }
+        console.warn("[CarProjection] Received wrapped user interaction event. Please update native code to emit UserInteractionData directly.");
+        interactionData = event.data as UserInteractionData;
+      } else {
+        console.warn("[CarProjection] Received user interaction event in unexpected format:", event);
+        return;
+      }
+      
       console.log('[CarProjection] Parsed interactionData:', JSON.stringify(interactionData, null, 2));
       
       const screenName = interactionData.screen;

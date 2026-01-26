@@ -2,8 +2,7 @@ const { withInfoPlist, withEntitlementsPlist } = require('@expo/config-plugins')
 
 const withCarPlay = (config, options = {}) => {
   const {
-    carAppCategory = 'navigation', // navigation, media, messaging, etc.
-    requiresCarPlayApp = true
+    carAppCategory = 'navigation' // navigation, media, messaging, etc.
   } = options;
 
   // Configure Info.plist with CarPlay entitlements and configuration
@@ -15,8 +14,9 @@ const withCarPlay = (config, options = {}) => {
       infoPlist.UISceneConfigurations = {};
     }
     
-    if (!infoPlist.UISceneConfigurations['UIWindowSceneSessionRoleApplication']) {
-      infoPlist.UISceneConfigurations['UIWindowSceneSessionRoleApplication'] = [];
+    // CarPlay scenes should be under CPTemplateApplicationSceneSessionRoleApplication
+    if (!infoPlist.UISceneConfigurations['CPTemplateApplicationSceneSessionRoleApplication']) {
+      infoPlist.UISceneConfigurations['CPTemplateApplicationSceneSessionRoleApplication'] = [];
     }
 
     // Add CarPlay scene delegate configuration
@@ -26,7 +26,7 @@ const withCarPlay = (config, options = {}) => {
       'UISceneClass': 'CPTemplateApplicationScene'
     };
 
-    const sceneConfigs = infoPlist.UISceneConfigurations['UIWindowSceneSessionRoleApplication'];
+    const sceneConfigs = infoPlist.UISceneConfigurations['CPTemplateApplicationSceneSessionRoleApplication'];
     const existingCarPlayScene = sceneConfigs.find(
       (scene) => scene?.UISceneConfigurationName === 'CarPlay'
     );
