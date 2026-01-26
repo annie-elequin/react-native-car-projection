@@ -32,7 +32,7 @@ if (__DEV__) {
 const isNativeModuleAvailable = AndroidAutoNativeModule != null;
 
 // Create a wrapper that includes both native functions and stub event methods
-const AndroidAutoModule = {
+const AndroidAutoNativeModule = {
   // Native module functions with fallbacks if module isn't available
   registerScreen: isNativeModuleAvailable 
     ? AndroidAutoNativeModule.registerScreen
@@ -81,4 +81,4 @@ const AndroidAutoModule = {
   }
 };
 
-export default AndroidAutoModule;
+export default AndroidAutoNativeModule;

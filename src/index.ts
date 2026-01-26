@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 
-import AndroidAutoModule from "./AndroidAutoModule.js";
+import AndroidAutoNativeModule from "./AndroidAutoNativeModule.js";
+import CarPlayNativeModule from "./CarPlayNativeModule.js";
 
 // Define Subscription interface
 interface Subscription {
@@ -241,78 +243,136 @@ function prepareScreenConfigForNative(screenConfig: ScreenConfig): ScreenConfig 
   };
 }
 
-// Main AndroidAuto class
-class AndroidAuto {
+// Get platform-specific native module
+function getNativeModule() {
+  if (Platform.OS === 'android') {
+    return AndroidAutoNativeModule;
+  } else if (Platform.OS === 'ios') {
+    return CarPlayNativeModule;
+  }
+  return null;
+}
+
+// Main CarProjection class - unified API for both Android Auto and CarPlay
+class CarProjection {
 
   /**
    * Register a screen with its template configuration
+   * Registers on the current platform (Android Auto or CarPlay)
    */
   async registerScreen(screenConfig: ScreenConfig): Promise<void> {
-    console.log('[AndroidAuto] registerScreen called for:', screenConfig.name);
-    console.log('[AndroidAuto] Template type:', screenConfig.template.type);
-    
-    // Strip callbacks before sending to native
     const preparedConfig = prepareScreenConfigForNative(screenConfig);
-    console.log('[AndroidAuto] Prepared config (without callbacks):', JSON.stringify(preparedConfig, null, 2));
-    console.log('[AndroidAuto] Stored callbacks count:', callbackStore.get(screenConfig.name)?.size || 0);
+    const nativeModule = getNativeModule();
     
-    return AndroidAutoModule.registerScreen(preparedConfig);
+    if (!nativeModule) {
+      throw new Error(`Car Projection is not available on platform: ${Platform.OS}`);
+    }
+    
+    return nativeModule.registerScreen(preparedConfig);
   }
 
   /**
-   * Start the Android Auto session
+   * Start the car projection session (Android Auto or CarPlay)
    */
   async startSession(): Promise<void> {
-    return AndroidAutoModule.startSession();
+    const nativeModule = getNativeModule();
+    
+    if (!nativeModule) {
+      throw new Error(`Car Projection is not available on platform: ${Platform.OS}`);
+    }
+    
+    return nativeModule.startSession();
   }
 
   /**
    * Navigate to a specific screen
    */
   async navigateToScreen(screenName: string, params?: Record<string, any>): Promise<void> {
-    return AndroidAutoModule.navigateToScreen(screenName, params);
+    const nativeModule = getNativeModule();
+    
+    if (!nativeModule) {
+      throw new Error(`Car Projection is not available on platform: ${Platform.OS}`);
+    }
+    
+    return nativeModule.navigateToScreen(screenName, params);
   }
 
   /**
    * Update a screen's template
    */
   async updateScreen(screenName: string, template: TemplateConfig): Promise<void> {
-    return AndroidAutoModule.updateScreen(screenName, template);
+    const nativeModule = getNativeModule();
+    
+    if (!nativeModule) {
+      throw new Error(`Car Projection is not available on platform: ${Platform.OS}`);
+    }
+    
+    return nativeModule.updateScreen(screenName, template);
   }
 
   /**
    * Get the current active screen name
    */
   async getCurrentScreen(): Promise<string | null> {
-    return AndroidAutoModule.getCurrentScreen();
+    const nativeModule = getNativeModule();
+    
+    if (!nativeModule) {
+      return Promise.resolve(null);
+    }
+    
+    return nativeModule.getCurrentScreen();
   }
 
   /**
-   * Check if Android Auto is currently connected
+   * Check if car projection is currently connected (Android Auto or CarPlay)
    */
   async isConnected(): Promise<boolean> {
-    return AndroidAutoModule.isConnected();
+    const nativeModule = getNativeModule();
+    
+    if (!nativeModule) {
+      return Promise.resolve(false);
+    }
+    
+    return nativeModule.isConnected();
   }
 
   /**
-   * Finish the Android Auto session
+   * Finish the car projection session
    */
   async finishSession(): Promise<void> {
-    return AndroidAutoModule.finishSession();
+    const nativeModule = getNativeModule();
+    
+    if (!nativeModule) {
+      throw new Error(`Car Projection is not available on platform: ${Platform.OS}`);
+    }
+    
+    return nativeModule.finishSession();
   }
 
   /**
    * Go back one screen
    */
   async popScreen(): Promise<void> {
-    return AndroidAutoModule.popScreen();
+    const nativeModule = getNativeModule();
+    
+    if (!nativeModule) {
+      throw new Error(`Car Projection is not available on platform: ${Platform.OS}`);
+    }
+    
+    return nativeModule.popScreen();
   }
 
   /**
    * Go back to the root screen
    */
   async popToRoot(): Promise<void> {
-    return AndroidAutoModule.popToRoot();
+    const nativeModule = getNativeModule();
+    
+    if (!nativeModule) {
+      throw new Error(`Car Projection is not available on platform: ${Platform.OS}`);
+    }
+    
+    return nativeModule.popToRoot();
   }
 
   // Event listeners
@@ -320,21 +380,42 @@ class AndroidAuto {
    * Listen for session started events
    */
   addSessionStartedListener(listener: () => void): Subscription {
-    return AndroidAutoModule.addListener('onSessionStarted', listener);
+    const nativeModule = getNativeModule();
+    
+    if (!nativeModule) {
+      console.warn(`Car Projection is not available on platform: ${Platform.OS}`);
+      return { remove: () => {} };
+    }
+    
+    return nativeModule.addListener('onSessionStarted', listener);
   }
 
   /**
    * Listen for session ended events
    */
   addSessionEndedListener(listener: () => void): Subscription {
-    return AndroidAutoModule.addListener('onSessionEnded', listener);
+    const nativeModule = getNativeModule();
+    
+    if (!nativeModule) {
+      console.warn(`Car Projection is not available on platform: ${Platform.OS}`);
+      return { remove: () => {} };
+    }
+    
+    return nativeModule.addListener('onSessionEnded', listener);
   }
 
   /**
    * Listen for screen change events
    */
   addScreenChangedListener(listener: (screenName: string) => void): Subscription {
-    return AndroidAutoModule.addListener('onScreenChanged', (event: any) => {
+    const nativeModule = getNativeModule();
+    
+    if (!nativeModule) {
+      console.warn(`Car Projection is not available on platform: ${Platform.OS}`);
+      return { remove: () => {} };
+    }
+    
+    return nativeModule.addListener('onScreenChanged', (event: any) => {
       listener(event.data);
     });
   }
@@ -343,8 +424,17 @@ class AndroidAuto {
    * Listen for user interaction events
    */
   addUserInteractionListener(listener: (action: string, data: any) => void): Subscription {
-    return AndroidAutoModule.addListener('onUserInteraction', (event: any) => {
-      const interactionData = event.data as UserInteractionData;
+    const nativeModule = getNativeModule();
+    
+    if (!nativeModule) {
+      console.warn(`Car Projection is not available on platform: ${Platform.OS}`);
+      return { remove: () => {} };
+    }
+    
+    return nativeModule.addListener('onUserInteraction', (event: any) => {
+      // Expo Modules passes the event data directly as the second parameter
+      // The event might be the data itself, or wrapped in an object
+      const interactionData = (event?.action ? event : (event?.data || event)) as UserInteractionData;
       const screenName = interactionData.screen;
       const itemId = interactionData.data?.id;
       
@@ -353,7 +443,11 @@ class AndroidAuto {
         const screenCallbacks = callbackStore.get(screenName);
         const callback = screenCallbacks?.get(itemId);
         if (callback) {
-          callback();
+          try {
+            callback();
+          } catch (e) {
+            console.error('[CarProjection] Error executing callback:', e);
+          }
         }
       }
       
@@ -363,7 +457,7 @@ class AndroidAuto {
 }
 
 // Create singleton instance
-const androidAutoInstance = new AndroidAuto();
+const carProjectionInstance = new CarProjection();
 
 // Custom hook for car navigation
 export function useCarNavigation() {
@@ -372,13 +466,13 @@ export function useCarNavigation() {
 
   useEffect(() => {
     // Get initial state
-    androidAutoInstance.getCurrentScreen().then(setCurrentScreen);
-    androidAutoInstance.isConnected().then(setIsConnected);
+    carProjectionInstance.getCurrentScreen().then(setCurrentScreen);
+    carProjectionInstance.isConnected().then(setIsConnected);
 
     // Listen for changes
-    const screenSub = androidAutoInstance.addScreenChangedListener(setCurrentScreen);
-    const sessionStartedSub = androidAutoInstance.addSessionStartedListener(() => setIsConnected(true));
-    const sessionEndedSub = androidAutoInstance.addSessionEndedListener(() => {
+    const screenSub = carProjectionInstance.addScreenChangedListener(setCurrentScreen);
+    const sessionStartedSub = carProjectionInstance.addSessionStartedListener(() => setIsConnected(true));
+    const sessionEndedSub = carProjectionInstance.addSessionEndedListener(() => {
       setIsConnected(false);
       setCurrentScreen(null);
     });
@@ -395,28 +489,28 @@ export function useCarNavigation() {
      * Navigate to a screen
      */
     push: (screenName: string, params?: Record<string, any>) => {
-      return androidAutoInstance.navigateToScreen(screenName, params);
+      return carProjectionInstance.navigateToScreen(screenName, params);
     },
 
     /**
      * Go back one screen
      */
     pop: () => {
-      return androidAutoInstance.popScreen();
+      return carProjectionInstance.popScreen();
     },
 
     /**
      * Go back to root screen
      */
     popToRoot: () => {
-      return androidAutoInstance.popToRoot();
+      return carProjectionInstance.popToRoot();
     },
 
     /**
      * Finish the session
      */
     finish: () => {
-      return androidAutoInstance.finishSession();
+      return carProjectionInstance.finishSession();
     },
 
     /**
@@ -434,7 +528,7 @@ export function useCarNavigation() {
 }
 
 // Export the singleton instance as default
-export default androidAutoInstance;
+export default carProjectionInstance;
 
 // Also export the class for advanced usage
-export { AndroidAuto };
+export { CarProjection };
