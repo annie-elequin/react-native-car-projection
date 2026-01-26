@@ -21,9 +21,21 @@ class AndroidAutoCarAppService : CarAppService() {
         }
 
         fun registerScreen(screenConfig: Map<String, Any>) {
+            android.util.Log.d("AndroidAuto", "registerScreen called")
             val name = screenConfig["name"] as? String 
                 ?: throw IllegalArgumentException("Screen name is required")
+            android.util.Log.d("AndroidAuto", "Registering screen: $name")
+            
+            // Log template type
+            val template = screenConfig["template"] as? Map<String, Any>
+            if (template != null) {
+                android.util.Log.d("AndroidAuto", "Template type: ${template["type"]}")
+                val items = template["items"] as? List<*>
+                android.util.Log.d("AndroidAuto", "Items count: ${items?.size ?: 0}")
+            }
+            
             registeredScreens[name] = screenConfig
+            android.util.Log.d("AndroidAuto", "Screen registered successfully. Total screens: ${registeredScreens.size}")
         }
 
         fun getRegisteredScreens(): Map<String, Map<String, Any>> = registeredScreens

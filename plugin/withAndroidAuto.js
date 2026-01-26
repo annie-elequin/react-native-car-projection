@@ -33,6 +33,14 @@ const withAndroidAuto = (config, options = {}) => {
       }
     };
 
+    // Add minCarApiLevel metadata (required by Car App Library)
+    const minCarApiLevelMetadata = {
+      $: {
+        'android:name': 'androidx.car.app.minCarApiLevel',
+        'android:value': minCarApiLevel.toString()
+      }
+    };
+
     // Add Car App Service
     const carAppService = {
       $: {
@@ -77,6 +85,15 @@ const withAndroidAuto = (config, options = {}) => {
 
     if (!existingMetadata) {
       application['meta-data'].push(carAppMetadata);
+    }
+
+    // Add minCarApiLevel metadata if it doesn't exist
+    const existingMinApiMetadata = application['meta-data'].find(
+      (meta) => meta.$['android:name'] === 'androidx.car.app.minCarApiLevel'
+    );
+
+    if (!existingMinApiMetadata) {
+      application['meta-data'].push(minCarApiLevelMetadata);
     }
 
     // Add service if it doesn't exist

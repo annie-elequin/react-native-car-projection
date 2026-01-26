@@ -95,6 +95,152 @@ export function createMessageTemplate(config: Omit<MessageTemplateConfig, 'type'
   };
 }
 
+// Store callbacks separately since they can't be serialized
+const callbackStore = new Map<string, Map<string, () => void>>();
+
+// Helper function to deep clone without functions
+function cloneWithoutFunctions(obj: any): any {
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  
+  if (Array.isArray(obj)) {
+    return obj.map(item => cloneWithoutFunctions(item));
+  }
+  
+  const cloned: any = {};
+  for (const key in obj) {
+    if (obj.hasOwnProperty(key)) {
+      const value = obj[key];
+      if (typeof value === 'function') {
+        // Skip functions
+        continue;
+      }
+      cloned[key] = cloneWithoutFunctions(value);
+    }
+  }
+  return cloned;
+}
+
+// Helper function to strip callbacks and add IDs
+function prepareScreenConfigForNative(screenConfig: ScreenConfig): ScreenConfig {
+  const screenName = screenConfig.name;
+  const callbacks = new Map<string, () => void>();
+  const originalTemplate = screenConfig.template;
+  
+  // Process items in ListTemplate - extract callbacks from original
+  if (originalTemplate.type === 'ListTemplate') {
+    if (originalTemplate.items) {
+      originalTemplate.items.forEach((item: any, index: number) => {
+        const itemId = `${screenName}_item_${index}`;
+        if (item.onPress && typeof item.onPress === 'function') {
+          callbacks.set(itemId, item.onPress);
+        }
+      });
+    }
+    
+    // Process itemLists if present
+    if (originalTemplate.itemLists) {
+      originalTemplate.itemLists.forEach((itemList: any, listIndex: number) => {
+        if (itemList.items) {
+          itemList.items.forEach((item: any, itemIndex: number) => {
+            const itemId = `${screenName}_list_${listIndex}_item_${itemIndex}`;
+            if (item.onPress && typeof item.onPress === 'function') {
+              callbacks.set(itemId, item.onPress);
+            }
+          });
+        }
+      });
+    }
+    
+    // Process headerAction
+    if (originalTemplate.headerAction?.onPress && typeof originalTemplate.headerAction.onPress === 'function') {
+      const actionId = `${screenName}_headerAction`;
+      callbacks.set(actionId, originalTemplate.headerAction.onPress);
+    }
+    
+    // Process actionStrip
+    if (originalTemplate.actionStrip) {
+      originalTemplate.actionStrip.forEach((action: any, index: number) => {
+        const actionId = `${screenName}_actionStrip_${index}`;
+        if (action.onPress && typeof action.onPress === 'function') {
+          callbacks.set(actionId, action.onPress);
+        }
+      });
+    }
+  }
+  
+  // Process MessageTemplate actions
+  if (originalTemplate.type === 'MessageTemplate') {
+    if (originalTemplate.headerAction?.onPress && typeof originalTemplate.headerAction.onPress === 'function') {
+      const actionId = `${screenName}_headerAction`;
+      callbacks.set(actionId, originalTemplate.headerAction.onPress);
+    }
+    
+    if (originalTemplate.actionStrip) {
+      originalTemplate.actionStrip.forEach((action: any, index: number) => {
+        const actionId = `${screenName}_actionStrip_${index}`;
+        if (action.onPress && typeof action.onPress === 'function') {
+          callbacks.set(actionId, action.onPress);
+        }
+      });
+    }
+  }
+  
+  // Now clone without functions and add IDs
+  const processedTemplate = cloneWithoutFunctions(originalTemplate);
+  
+  // Add IDs to items
+  if (processedTemplate.type === 'ListTemplate') {
+    if (processedTemplate.items) {
+      processedTemplate.items = processedTemplate.items.map((item: any, index: number) => {
+        return { ...item, id: `${screenName}_item_${index}` };
+      });
+    }
+    
+    if (processedTemplate.itemLists) {
+      processedTemplate.itemLists = processedTemplate.itemLists.map((itemList: any, listIndex: number) => {
+        if (itemList.items) {
+          itemList.items = itemList.items.map((item: any, itemIndex: number) => {
+            return { ...item, id: `${screenName}_list_${listIndex}_item_${itemIndex}` };
+          });
+        }
+        return itemList;
+      });
+    }
+    
+    if (processedTemplate.headerAction) {
+      processedTemplate.headerAction = { ...processedTemplate.headerAction, id: `${screenName}_headerAction` };
+    }
+    
+    if (processedTemplate.actionStrip) {
+      processedTemplate.actionStrip = processedTemplate.actionStrip.map((action: any, index: number) => {
+        return { ...action, id: `${screenName}_actionStrip_${index}` };
+      });
+    }
+  }
+  
+  if (processedTemplate.type === 'MessageTemplate') {
+    if (processedTemplate.headerAction) {
+      processedTemplate.headerAction = { ...processedTemplate.headerAction, id: `${screenName}_headerAction` };
+    }
+    
+    if (processedTemplate.actionStrip) {
+      processedTemplate.actionStrip = processedTemplate.actionStrip.map((action: any, index: number) => {
+        return { ...action, id: `${screenName}_actionStrip_${index}` };
+      });
+    }
+  }
+  
+  // Store callbacks for this screen
+  callbackStore.set(screenName, callbacks);
+  
+  return {
+    ...screenConfig,
+    template: processedTemplate
+  };
+}
+
 // Main AndroidAuto class
 class AndroidAuto {
 
@@ -102,7 +248,15 @@ class AndroidAuto {
    * Register a screen with its template configuration
    */
   async registerScreen(screenConfig: ScreenConfig): Promise<void> {
-    return AndroidAutoModule.registerScreen(screenConfig);
+    console.log('[AndroidAuto] registerScreen called for:', screenConfig.name);
+    console.log('[AndroidAuto] Template type:', screenConfig.template.type);
+    
+    // Strip callbacks before sending to native
+    const preparedConfig = prepareScreenConfigForNative(screenConfig);
+    console.log('[AndroidAuto] Prepared config (without callbacks):', JSON.stringify(preparedConfig, null, 2));
+    console.log('[AndroidAuto] Stored callbacks count:', callbackStore.get(screenConfig.name)?.size || 0);
+    
+    return AndroidAutoModule.registerScreen(preparedConfig);
   }
 
   /**
@@ -191,6 +345,18 @@ class AndroidAuto {
   addUserInteractionListener(listener: (action: string, data: any) => void): Subscription {
     return AndroidAutoModule.addListener('onUserInteraction', (event: any) => {
       const interactionData = event.data as UserInteractionData;
+      const screenName = interactionData.screen;
+      const itemId = interactionData.data?.id;
+      
+      // Execute stored callback if available
+      if (itemId && screenName) {
+        const screenCallbacks = callbackStore.get(screenName);
+        const callback = screenCallbacks?.get(itemId);
+        if (callback) {
+          callback();
+        }
+      }
+      
       listener(interactionData.action, interactionData.data);
     });
   }

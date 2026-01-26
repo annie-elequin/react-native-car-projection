@@ -16,22 +16,39 @@ class AndroidAutoSession : Session(), DefaultLifecycleObserver {
     private var currentScreenName: String? = null
 
     override fun onCreateScreen(intent: android.content.Intent): Screen {
+        android.util.Log.d("AndroidAuto", "onCreateScreen called")
         val registeredScreens = AndroidAutoCarAppService.getRegisteredScreens()
+        android.util.Log.d("AndroidAuto", "Registered screens count: ${registeredScreens.size}")
+        android.util.Log.d("AndroidAuto", "Registered screen names: ${registeredScreens.keys.joinToString()}")
         
         // Find the root screen (first registered screen or one named "root")
         val rootScreenName = registeredScreens.keys.firstOrNull { it == "root" } 
             ?: registeredScreens.keys.firstOrNull()
         
+        android.util.Log.d("AndroidAuto", "Root screen name: $rootScreenName")
+        
         if (rootScreenName == null) {
+            android.util.Log.e("AndroidAuto", "No screens registered!")
             // Return a default screen if no screens are registered
             return DefaultScreen(carContext, "No screens registered")
         }
 
+        val screenConfig = registeredScreens[rootScreenName]
+        android.util.Log.d("AndroidAuto", "Screen config keys: ${screenConfig?.keys?.joinToString()}")
+        
         currentScreenName = rootScreenName
         screenStack.add(rootScreenName)
         AndroidAutoCarAppService.sendEventToJS("onScreenChanged", rootScreenName)
         
-        return createCarScreen(rootScreenName, registeredScreens[rootScreenName]!!)
+        android.util.Log.d("AndroidAuto", "Creating car screen for: $rootScreenName")
+        return try {
+            val screen = createCarScreen(rootScreenName, screenConfig!!)
+            android.util.Log.d("AndroidAuto", "Car screen created successfully")
+            screen
+        } catch (e: Exception) {
+            android.util.Log.e("AndroidAuto", "Error creating car screen", e)
+            DefaultScreen(carContext, "Error: ${e.message}")
+        }
     }
 
     fun getCurrentScreenName(): String? = currentScreenName
@@ -110,13 +127,33 @@ class AndroidAutoScreen(
 ) : Screen(carContext) {
 
     override fun onGetTemplate(): Template {
+        android.util.Log.d("AndroidAuto", "onGetTemplate called for screen: $screenName")
         val template = screenConfig["template"] as? Map<String, Any>
-            ?: return createDefaultTemplate()
+        if (template == null) {
+            android.util.Log.w("AndroidAuto", "No template found, using default")
+            return createDefaultTemplate()
+        }
 
-        return when (template["type"] as? String) {
-            "ListTemplate" -> createListTemplate(template)
-            "MessageTemplate" -> createMessageTemplate(template)
-            else -> createDefaultTemplate()
+        android.util.Log.d("AndroidAuto", "Template type: ${template["type"]}")
+        return try {
+            when (template["type"] as? String) {
+                "ListTemplate" -> {
+                    android.util.Log.d("AndroidAuto", "Creating ListTemplate")
+                    createListTemplate(template)
+                }
+                "MessageTemplate" -> {
+                    android.util.Log.d("AndroidAuto", "Creating MessageTemplate")
+                    createMessageTemplate(template)
+                }
+                else -> {
+                    android.util.Log.w("AndroidAuto", "Unknown template type, using default")
+                    createDefaultTemplate()
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AndroidAuto", "Error creating template", e)
+            e.printStackTrace()
+            createDefaultTemplate()
         }
     }
 
@@ -128,10 +165,12 @@ class AndroidAutoScreen(
     }
 
     private fun createListTemplate(templateConfig: Map<String, Any>): ListTemplate {
+        android.util.Log.d("AndroidAuto", "createListTemplate called")
         val builder = ListTemplate.Builder()
 
         // Set title
         val title = templateConfig["title"] as? String ?: "List"
+        android.util.Log.d("AndroidAuto", "Setting title: $title")
         builder.setTitle(title)
 
         // Set loading state
@@ -141,12 +180,14 @@ class AndroidAutoScreen(
         // Add header action if present
         val headerAction = templateConfig["headerAction"] as? Map<String, Any>
         if (headerAction != null) {
+            android.util.Log.d("AndroidAuto", "Adding header action")
             builder.setHeaderAction(createAction(headerAction))
         }
 
         // Add action strip if present
         val actionStrip = templateConfig["actionStrip"] as? List<Map<String, Any>>
         if (actionStrip != null) {
+            android.util.Log.d("AndroidAuto", "Adding action strip with ${actionStrip.size} actions")
             val actionStripBuilder = ActionStrip.Builder()
             actionStrip.forEach { actionConfig ->
                 actionStripBuilder.addAction(createAction(actionConfig))
@@ -156,16 +197,26 @@ class AndroidAutoScreen(
 
         // Add items - simplified to use direct items array instead of itemLists
         val items = templateConfig["items"] as? List<Map<String, Any>> ?: emptyList()
+        android.util.Log.d("AndroidAuto", "Processing ${items.size} items")
         if (items.isNotEmpty()) {
             val itemListBuilder = ItemList.Builder()
             
-            items.forEach { itemConfig ->
-                itemListBuilder.addItem(createRow(itemConfig))
+            items.forEachIndexed { index, itemConfig ->
+                android.util.Log.d("AndroidAuto", "Processing item $index: ${itemConfig["title"]}")
+                try {
+                    itemListBuilder.addItem(createRow(itemConfig))
+                } catch (e: Exception) {
+                    android.util.Log.e("AndroidAuto", "Error creating row for item $index", e)
+                    e.printStackTrace()
+                    throw e
+                }
             }
 
+            android.util.Log.d("AndroidAuto", "Building item list")
             builder.setSingleList(itemListBuilder.build())
         }
 
+        android.util.Log.d("AndroidAuto", "Building ListTemplate")
         return builder.build()
     }
 
@@ -198,12 +249,15 @@ class AndroidAutoScreen(
     }
 
     private fun createRow(rowConfig: Map<String, Any>): Row {
+        android.util.Log.d("AndroidAuto", "createRow called with keys: ${rowConfig.keys.joinToString()}")
         val title = rowConfig["title"] as? String ?: "Row"
+        android.util.Log.d("AndroidAuto", "Row title: $title")
         val rowBuilder = Row.Builder().setTitle(title)
 
         // Add texts
         val texts = rowConfig["texts"] as? List<String>
         if (texts != null && texts.isNotEmpty()) {
+            android.util.Log.d("AndroidAuto", "Adding ${texts.size} text lines")
             texts.forEachIndexed { index, text ->
                 when (index) {
                     0 -> rowBuilder.addText(text)
@@ -212,21 +266,39 @@ class AndroidAutoScreen(
             }
         }
 
-        // Add click listener
-        val hasOnPress = rowConfig["onPress"] != null
-        if (hasOnPress) {
+        // Add click listener - check for id instead of onPress
+        val itemId = rowConfig["id"] as? String
+        android.util.Log.d("AndroidAuto", "Row itemId: $itemId")
+        if (itemId != null) {
             rowBuilder.setOnClickListener {
+                android.util.Log.d("AndroidAuto", "Row clicked: $itemId")
+                // Create a clean map with only serializable data
+                val serializableData = mutableMapOf<String, Any>()
+                rowConfig.forEach { (key, value) ->
+                    // Only include primitive types and collections of primitives
+                    when (value) {
+                        is String, is Number, is Boolean -> serializableData[key] = value
+                        is List<*> -> {
+                            // Only include lists of primitives
+                            val cleanList = value.filterIsInstance<String>()
+                            if (cleanList.size == value.size) {
+                                serializableData[key] = cleanList
+                            }
+                        }
+                    }
+                }
+                // Always include id
+                serializableData["id"] = itemId
+                
                 AndroidAutoCarAppService.sendEventToJS("onUserInteraction", mapOf(
                     "action" to "rowPress",
                     "screen" to screenName,
-                    "data" to rowConfig
+                    "data" to serializableData
                 ))
             }
         }
 
-        // Metadata functionality removed for now due to API changes
-        // The Place.builder API has changed in newer Car App Library versions
-
+        android.util.Log.d("AndroidAuto", "Building row")
         return rowBuilder.build()
     }
 
@@ -234,14 +306,16 @@ class AndroidAutoScreen(
         val title = actionConfig["title"] as? String ?: "Action"
         val actionBuilder = Action.Builder().setTitle(title)
 
-        // Add click listener
-        val hasOnPress = actionConfig["onPress"] != null
-        if (hasOnPress) {
+        // Add click listener - check for id instead of onPress
+        val actionId = actionConfig["id"] as? String
+        if (actionId != null) {
             actionBuilder.setOnClickListener {
+                // Send only serializable data (no functions)
+                val serializableData = actionConfig.filterKeys { it != "onPress" }
                 AndroidAutoCarAppService.sendEventToJS("onUserInteraction", mapOf(
                     "action" to "actionPress",
                     "screen" to screenName,
-                    "data" to actionConfig
+                    "data" to serializableData
                 ))
             }
         }

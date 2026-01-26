@@ -1,4 +1,6 @@
-# React Native Car Projection
+# React Native Car Projection [VIBE CODED]
+
+## ⚠️ NOTE: I am not a native mobile developer, so I vibe-coded this for my own purposes. Use at your own risk.
 
 A modern React Native module for integrating Android Auto and CarPlay functionality using the Car App Library and Expo Modules API. Built for Expo SDK 53+ with React Native 0.79 and React 19 support.
 
