@@ -44,6 +44,7 @@ class AndroidAutoSession : Session(), DefaultLifecycleObserver {
     fun getCurrentScreenName(): String? = currentScreenName
 
     fun navigateToScreen(screenName: String, params: Map<String, Any>?) {
+        android.util.Log.e("AndroidAuto", "Trying to navigate to screen: $screenName")
         val registeredScreens = AndroidAutoCarAppService.getRegisteredScreens()
         val screenConfig = registeredScreens[screenName]
         
@@ -269,12 +270,14 @@ class AndroidAutoScreen(
                 serializableData["id"] = itemId
                 
                 android.util.Log.d("AndroidAuto", "Preparing to send onUserInteraction event")
-                val eventData = mapOf(
+                // Flatten the event data structure for better Expo Modules compatibility
+                val eventData = mutableMapOf<String, Any?>(
                     "action" to "rowPress",
-                    "screen" to screenName,
-                    "data" to serializableData
+                    "screen" to screenName
                 )
-                android.util.Log.d("AndroidAuto", "Event data: $eventData")
+                // Add all data fields directly to the event map (flattened)
+                eventData.putAll(serializableData)
+                android.util.Log.d("AndroidAuto", "Event data (flattened): $eventData")
                 AndroidAutoCarAppService.sendEventToJS("onUserInteraction", eventData)
             }
         }

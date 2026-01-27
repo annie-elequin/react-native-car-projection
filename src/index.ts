@@ -241,6 +241,67 @@ function prepareScreenConfigForNative(screenConfig: ScreenConfig): ScreenConfig 
   };
 }
 
+// Flag to track if internal listener is set up
+let internalListenerInitialized = false;
+let internalListenerSubscription: Subscription | null = null;
+
+// Internal function to set up the user interaction listener automatically
+function ensureInternalListenerSetup() {
+  if (internalListenerInitialized) {
+    return;
+  }
+  internalListenerInitialized = true;
+  
+  console.log('[AndroidAuto] Setting up internal user interaction listener');
+  
+  internalListenerSubscription = AndroidAutoModule.addListener('onUserInteraction', (event: any) => {
+    console.log('[AndroidAuto] *** onUserInteraction EVENT RECEIVED ***');
+    console.log('[AndroidAuto] Raw event:', JSON.stringify(event, null, 2));
+    
+    // Parse the event data
+    let rawData: any = null;
+    if (event && typeof event === 'object' && event.action && event.screen) {
+      rawData = event;
+    } else if (event?.data && typeof event.data === 'object') {
+      rawData = event.data;
+    }
+    
+    if (!rawData || !rawData.action || !rawData.screen) {
+      console.warn('[AndroidAuto] Could not parse event structure:', event);
+      return;
+    }
+    
+    const screenName = rawData.screen;
+    const itemId = rawData.id;
+    
+    console.log('[AndroidAuto] Looking up callback for screen:', screenName, 'itemId:', itemId);
+    
+    // Execute stored callback if available
+    if (itemId && screenName) {
+      const screenCallbacks = callbackStore.get(screenName);
+      if (screenCallbacks) {
+        const callback = screenCallbacks.get(itemId);
+        if (callback) {
+          console.log('[AndroidAuto] ✓ Executing callback for', screenName, itemId);
+          try {
+            callback();
+          } catch (e) {
+            console.error('[AndroidAuto] ✗ Error executing callback:', e);
+          }
+        } else {
+          console.warn('[AndroidAuto] ✗ No callback found for', itemId);
+          console.log('[AndroidAuto] Available callbacks:', Array.from(screenCallbacks.keys()));
+        }
+      } else {
+        console.warn('[AndroidAuto] ✗ No callbacks registered for screen:', screenName);
+        console.log('[AndroidAuto] Available screens:', Array.from(callbackStore.keys()));
+      }
+    }
+  });
+  
+  console.log('[AndroidAuto] Internal listener set up successfully');
+}
+
 // Main AndroidAuto class
 class AndroidAuto {
 
@@ -248,8 +309,15 @@ class AndroidAuto {
    * Register a screen with its template configuration
    */
   async registerScreen(screenConfig: ScreenConfig): Promise<void> {
+    // Ensure the internal listener is set up to handle callbacks
+    ensureInternalListenerSetup();
+    
     // Strip callbacks before sending to native
     const preparedConfig = prepareScreenConfigForNative(screenConfig);
+    const callbacks = callbackStore.get(screenConfig.name);
+    if (callbacks) {
+      console.log(`[AndroidAuto] Registered screen '${screenConfig.name}' with ${callbacks.size} callbacks:`, Array.from(callbacks.keys()));
+    }
     return AndroidAutoModule.registerScreen(preparedConfig);
   }
 
@@ -264,6 +332,7 @@ class AndroidAuto {
    * Navigate to a specific screen
    */
   async navigateToScreen(screenName: string, params?: Record<string, any>): Promise<void> {
+    console.log('[AndroidAuto] Navigating to screen:', screenName);
     return AndroidAutoModule.navigateToScreen(screenName, params);
   }
 
@@ -309,6 +378,15 @@ class AndroidAuto {
     return AndroidAutoModule.popToRoot();
   }
 
+  /**
+   * Send a simple test event (just a string) to verify event mechanism works
+   */
+  async sendTestEvent(message: string): Promise<void> {
+    console.log('[TEST] Sending to native:', message);
+    await AndroidAutoModule.sendTestEvent(message);
+    console.log('[TEST] ✓ Sent (promise resolved)');
+  }
+
   // Event listeners
   /**
    * Listen for session started events
@@ -328,37 +406,132 @@ class AndroidAuto {
    * Listen for screen change events
    */
   addScreenChangedListener(listener: (screenName: string) => void): Subscription {
+    console.log('[AndroidAuto] Setting up onScreenChanged listener');
     return AndroidAutoModule.addListener('onScreenChanged', (event: any) => {
-      listener(event.data);
+      console.log('[AndroidAuto] *** onScreenChanged EVENT RECEIVED ***');
+      console.log('[AndroidAuto] onScreenChanged event:', JSON.stringify(event, null, 2));
+      // According to Expo docs, the payload is received directly as the event object
+      // For string events, it's wrapped as { value: "..." }
+      // For map events, the map keys are at the top level
+      const screenName = event?.value || event?.screenName || event;
+      console.log('[AndroidAuto] Extracted screenName:', screenName);
+      listener(screenName);
     });
+  }
+
+  /**
+   * Listen for test events (simple string events for debugging)
+   */
+  addTestEventListener(listener: (message: string) => void): Subscription {
+    console.log('[TEST] Setting up listener (exactly like onScreenChanged)...');
+    console.log('[TEST] AndroidAutoModule:', AndroidAutoModule);
+    console.log('[TEST] AndroidAutoModule.addListener type:', typeof AndroidAutoModule.addListener);
+    
+    // Use EXACTLY the same pattern as onScreenChanged
+    const eventCallback = (event: any) => {
+      console.log('🎉 [TEST] *** EVENT RECEIVED ***');
+      console.log('[TEST] Event:', JSON.stringify(event, null, 2));
+      console.log('[TEST] Event type:', typeof event);
+      console.log('[TEST] Event keys:', event ? Object.keys(event) : 'null');
+      // According to Expo docs, the payload is received directly as the event object
+      // For string events sent as mapOf("value" to data), it's received as { value: "..." }
+      const message = event?.value || event?.message || event?.data?.value || String(event);
+      console.log('[TEST] Extracted message:', message);
+      listener(message);
+    };
+    
+    console.log('[TEST] About to call addListener...');
+    const subscription = AndroidAutoModule.addListener('onTestEvent', eventCallback);
+    console.log('[TEST] ✓ Listener registered, subscription:', subscription);
+    console.log('[TEST] Subscription type:', typeof subscription);
+    console.log('[TEST] Subscription.remove type:', typeof subscription?.remove);
+    return subscription;
   }
 
   /**
    * Listen for user interaction events
    */
   addUserInteractionListener(listener: (action: string, data: any) => void): Subscription {
-    return AndroidAutoModule.addListener('onUserInteraction', (event: any) => {
-      // Expo Modules passes the event data directly as the second parameter
-      // The event might be the data itself, or wrapped in an object
-      const interactionData = (event?.action ? event : (event?.data || event)) as UserInteractionData;
-      const screenName = interactionData.screen;
-      const itemId = interactionData.data?.id;
+    console.log('[AndroidAuto] Setting up onUserInteraction listener');
+    const subscription = AndroidAutoModule.addListener('onUserInteraction', (event: any) => {
+      console.log('[AndroidAuto] *** LISTENER CALLED ***');
+      // According to Expo docs, the payload is received directly as the event object
+      // When we send mapOf("action" to "rowPress", "screen" to "root", ...) from Kotlin,
+      // it's received as { action: "rowPress", screen: "root", ... } directly
+      
+      console.log('[AndroidAuto] Raw event received:', JSON.stringify(event, null, 2));
+      
+      // Try direct access first (per Expo docs), then fallback to event.data if needed
+      let rawData: any = null;
+      if (event && typeof event === 'object' && event.action && event.screen) {
+        // Direct access - event is the map we sent
+        rawData = event;
+      } else if (event?.data && typeof event.data === 'object') {
+        // Wrapped access - event.data contains the map
+        rawData = event.data;
+      }
+      
+      if (!rawData || !rawData.action || !rawData.screen) {
+        console.warn('[AndroidAuto] Could not parse event structure. Event:', event);
+        console.warn('[AndroidAuto] Event type:', typeof event);
+        console.warn('[AndroidAuto] Event keys:', event ? Object.keys(event) : 'null');
+        return;
+      }
+      
+      // Event data is now flattened: { action, screen, id, title, texts, ... }
+      const screenName = rawData.screen;
+      const itemId = rawData.id;
+      
+      // Reconstruct the interaction data structure for compatibility
+      const interactionData: UserInteractionData = {
+        action: rawData.action as 'rowPress' | 'actionPress',
+        screen: screenName,
+        data: {
+          id: itemId,
+          // Include all other fields from the flattened structure
+          ...Object.fromEntries(
+            Object.entries(rawData).filter(([key]) => key !== 'action' && key !== 'screen')
+          )
+        }
+      };
+      
+      console.log('[AndroidAuto] Parsed interaction:', {
+        action: interactionData.action,
+        screen: screenName,
+        itemId: itemId,
+        fullData: interactionData.data
+      });
       
       // Execute stored callback if available
       if (itemId && screenName) {
         const screenCallbacks = callbackStore.get(screenName);
-        const callback = screenCallbacks?.get(itemId);
-        if (callback) {
-          try {
-            callback();
-          } catch (e) {
-            console.error('[AndroidAuto] Error executing callback:', e);
+        if (screenCallbacks) {
+          const callback = screenCallbacks.get(itemId);
+          if (callback) {
+            console.log('[AndroidAuto] ✓ Found and executing callback for', screenName, itemId);
+            try {
+              callback();
+            } catch (e) {
+              console.error('[AndroidAuto] ✗ Error executing callback:', e);
+              console.error(e);
+            }
+          } else {
+            console.warn('[AndroidAuto] ✗ No callback found for', screenName, itemId);
+            console.log('[AndroidAuto] Available callbacks for this screen:', Array.from(screenCallbacks.keys()));
           }
+        } else {
+          console.warn('[AndroidAuto] ✗ No callbacks registered for screen:', screenName);
+          console.log('[AndroidAuto] Available screens with callbacks:', Array.from(callbackStore.keys()));
         }
+      } else {
+        console.warn('[AndroidAuto] ✗ Missing itemId or screenName:', { itemId, screenName });
       }
       
+      // Also call the user's listener
       listener(interactionData.action, interactionData.data);
     });
+    console.log('[AndroidAuto] onUserInteraction listener registered, subscription:', subscription);
+    return subscription;
   }
 }
 

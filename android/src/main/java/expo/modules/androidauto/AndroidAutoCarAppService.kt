@@ -60,23 +60,15 @@ class AndroidAutoCarAppService : CarAppService() {
         fun sendEventToJS(eventName: String, data: Any?) {
             try {
                 if (moduleInstance == null) {
-                    android.util.Log.e("AndroidAuto", "Cannot send event: moduleInstance is null")
+                    android.util.Log.e("AndroidAuto", "Cannot send event '$eventName': moduleInstance is null")
                     return
                 }
-                // Expo Modules sendEvent expects a Map<String, Any?>
-                // Pass the data directly if it's already a Map, otherwise wrap it
-                val eventData: Map<String, Any?> = when (data) {
-                    is Map<*, *> -> {
-                        // If it's already a Map, cast it and ensure values are nullable
-                        @Suppress("UNCHECKED_CAST")
-                        data as Map<String, Any?>
-                    }
-                    null -> emptyMap()
-                    else -> mapOf("value" to data)
-                }
-                moduleInstance?.sendEvent(eventName, eventData)
+                
+                android.util.Log.d("AndroidAuto", "[Service] Calling Module.sendEventToJS for '$eventName'")
+                // Call the Module's own method to send events (ensures we use Module's sendEvent)
+                moduleInstance?.sendEventToJS(eventName, data)
+                android.util.Log.d("AndroidAuto", "[Service] Module.sendEventToJS call completed")
             } catch (e: Exception) {
-                // Log error but don't crash
                 android.util.Log.e("AndroidAutoCarAppService", "Failed to send event to JS: ${e.message}", e)
                 e.printStackTrace()
             }
