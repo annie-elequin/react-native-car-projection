@@ -23,7 +23,18 @@ class AndroidAutoCarAppService : CarAppService() {
         fun registerScreen(screenConfig: Map<String, Any>) {
             val name = screenConfig["name"] as? String 
                 ?: throw IllegalArgumentException("Screen name is required")
+            val isFirstMainScreen = (name == "main" || name == "root") && !registeredScreens.containsKey("main") && !registeredScreens.containsKey("root")
             registeredScreens[name] = screenConfig
+            android.util.Log.d("AndroidAuto", "[Service] Registered screen: $name, total screens: ${registeredScreens.size}, isFirstMainScreen: $isFirstMainScreen")
+            
+            // If this is the first main/root screen and we have an active session, refresh to replace DefaultScreen
+            if (isFirstMainScreen && currentSession != null && isSessionActive) {
+                android.util.Log.d("AndroidAuto", "[Service] First main screen registered with active session, refreshing display")
+                // Use a handler to ensure this runs on the main thread
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    currentSession?.refreshCurrentScreen()
+                }
+            }
         }
 
         fun getRegisteredScreens(): Map<String, Map<String, Any>> = registeredScreens
@@ -98,10 +109,11 @@ class AndroidAutoCarAppService : CarAppService() {
     }
 
     override fun onCreateSession(): Session {
+        android.util.Log.d("AndroidAuto", "[Service] onCreateSession called")
         val session = AndroidAutoSession()
         setCurrentSession(session)
-        setSessionActive(true)
-        
+        // Don't set active here - let the session's lifecycle observer handle it
+        // This ensures isConnected() only returns true when the session is fully ready
         return session
     }
 

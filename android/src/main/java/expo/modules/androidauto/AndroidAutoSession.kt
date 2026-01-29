@@ -15,11 +15,18 @@ class AndroidAutoSession : Session(), DefaultLifecycleObserver {
     private val screenStack = mutableListOf<String>()
     private var currentScreenName: String? = null
 
+    init {
+        // Register this session as a lifecycle observer to receive onCreate/onDestroy callbacks
+        lifecycle.addObserver(this)
+    }
+
     override fun onCreateScreen(intent: android.content.Intent): Screen {
         val registeredScreens = AndroidAutoCarAppService.getRegisteredScreens()
+        android.util.Log.d("AndroidAuto", "[Session] onCreateScreen - registered screens: ${registeredScreens.keys}")
         
-        // Find the root screen (first registered screen or one named "root")
+        // Find the root screen: prefer "root", then "main", then first registered
         val rootScreenName = registeredScreens.keys.firstOrNull { it == "root" } 
+            ?: registeredScreens.keys.firstOrNull { it == "main" }
             ?: registeredScreens.keys.firstOrNull()
         
         if (rootScreenName == null) {
@@ -28,6 +35,7 @@ class AndroidAutoSession : Session(), DefaultLifecycleObserver {
             return DefaultScreen(carContext, "No screens registered")
         }
 
+        android.util.Log.d("AndroidAuto", "[Session] Selected root screen: $rootScreenName")
         val screenConfig = registeredScreens[rootScreenName]
         currentScreenName = rootScreenName
         screenStack.add(rootScreenName)
@@ -42,6 +50,48 @@ class AndroidAutoSession : Session(), DefaultLifecycleObserver {
     }
 
     fun getCurrentScreenName(): String? = currentScreenName
+
+    fun refreshCurrentScreen() {
+        android.util.Log.d("AndroidAuto", "[Session] Refreshing current screen")
+        try {
+            // Get the top screen and invalidate it to refresh
+            val screenManager = carContext.getCarService(androidx.car.app.ScreenManager::class.java)
+            val topScreen = screenManager.top
+            if (topScreen is AndroidAutoScreen) {
+                // If screens are now registered, update the screen config
+                val registeredScreens = AndroidAutoCarAppService.getRegisteredScreens()
+                val currentName = currentScreenName ?: "main"
+                val screenConfig = registeredScreens[currentName] ?: registeredScreens["root"] ?: registeredScreens.values.firstOrNull()
+                
+                if (screenConfig != null) {
+                    android.util.Log.d("AndroidAuto", "[Session] Updating screen with config: ${screenConfig["name"]}")
+                    topScreen.updateFullConfig(screenConfig)
+                }
+            } else if (topScreen is DefaultScreen) {
+                // Replace the default screen with a proper screen if we have one now
+                val registeredScreens = AndroidAutoCarAppService.getRegisteredScreens()
+                val rootScreenName = registeredScreens.keys.firstOrNull { it == "main" || it == "root" }
+                    ?: registeredScreens.keys.firstOrNull()
+                
+                if (rootScreenName != null) {
+                    val screenConfig = registeredScreens[rootScreenName]!!
+                    currentScreenName = rootScreenName
+                    android.util.Log.d("AndroidAuto", "[Session] Replacing default screen with: $rootScreenName, config keys: ${screenConfig.keys}")
+                    
+                    // Push the new screen on top (we can't easily pop the root)
+                    val newScreen = createCarScreen(rootScreenName, screenConfig)
+                    screenManager.push(newScreen)
+                    screenStack.add(rootScreenName)
+                } else {
+                    android.util.Log.e("AndroidAuto", "[Session] No main/root screen found in registered screens: ${registeredScreens.keys}")
+                }
+            } else {
+                android.util.Log.d("AndroidAuto", "[Session] Top screen is neither AndroidAutoScreen nor DefaultScreen: ${topScreen::class.java.simpleName}")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AndroidAuto", "[Session] Error refreshing screen", e)
+        }
+    }
 
     fun navigateToScreen(screenName: String, params: Map<String, Any>?) {
         android.util.Log.e("AndroidAuto", "Trying to navigate to screen: $screenName")
@@ -101,12 +151,28 @@ class AndroidAutoSession : Session(), DefaultLifecycleObserver {
 
     override fun onCreate(owner: LifecycleOwner) {
         super.onCreate(owner)
+        android.util.Log.d("AndroidAuto", "[Session] onCreate lifecycle callback")
+    }
+
+    override fun onStart(owner: LifecycleOwner) {
+        super.onStart(owner)
+        android.util.Log.d("AndroidAuto", "[Session] onStart - session is now active and connected")
+        AndroidAutoCarAppService.setSessionActive(true)
         AndroidAutoCarAppService.sendEventToJS("onSessionStarted", null)
+    }
+
+    override fun onStop(owner: LifecycleOwner) {
+        super.onStop(owner)
+        android.util.Log.d("AndroidAuto", "[Session] onStop - session is disconnecting")
+        AndroidAutoCarAppService.setSessionActive(false)
+        AndroidAutoCarAppService.sendEventToJS("onSessionEnded", null)
     }
 
     override fun onDestroy(owner: LifecycleOwner) {
         super.onDestroy(owner)
-        AndroidAutoCarAppService.sendEventToJS("onSessionEnded", null)
+        android.util.Log.d("AndroidAuto", "[Session] onDestroy - session is being destroyed")
+        // Ensure we're marked as inactive
+        AndroidAutoCarAppService.setSessionActive(false)
     }
 }
 
@@ -128,17 +194,31 @@ class AndroidAutoScreen(
             return createDefaultTemplate()
         }
 
+        val templateType = template["type"] as? String
+        android.util.Log.d("AndroidAuto", "Template type for screen $screenName: $templateType")
+        android.util.Log.d("AndroidAuto", "Template keys: ${template.keys.joinToString()}")
+        
         return try {
-            when (template["type"] as? String) {
-                "ListTemplate" -> createListTemplate(template)
-                "MessageTemplate" -> createMessageTemplate(template)
+            when (templateType) {
+                "ListTemplate" -> {
+                    android.util.Log.d("AndroidAuto", "Creating ListTemplate")
+                    createListTemplate(template)
+                }
+                "MessageTemplate" -> {
+                    android.util.Log.d("AndroidAuto", "Creating MessageTemplate")
+                    createMessageTemplate(template)
+                }
+                "PaneTemplate" -> {
+                    android.util.Log.d("AndroidAuto", "Creating PaneTemplate")
+                    createPaneTemplate(template)
+                }
                 else -> {
-                    android.util.Log.w("AndroidAuto", "Unknown template type: ${template["type"]}, using default")
+                    android.util.Log.w("AndroidAuto", "Unknown template type: $templateType, using default")
                     createDefaultTemplate()
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("AndroidAuto", "Error creating template", e)
+            android.util.Log.e("AndroidAuto", "Error creating template for type: $templateType", e)
             e.printStackTrace()
             createDefaultTemplate()
         }
@@ -148,6 +228,11 @@ class AndroidAutoScreen(
         screenConfig = screenConfig.toMutableMap().apply {
             put("template", newTemplate)
         }
+        invalidate() // This will trigger onGetTemplate() to be called again
+    }
+
+    fun updateFullConfig(newConfig: Map<String, Any>) {
+        screenConfig = newConfig
         invalidate() // This will trigger onGetTemplate() to be called again
     }
 
@@ -165,7 +250,7 @@ class AndroidAutoScreen(
         // Add header action if present
         val headerAction = templateConfig["headerAction"] as? Map<String, Any>
         if (headerAction != null) {
-            builder.setHeaderAction(createAction(headerAction))
+            builder.setHeaderAction(createAction(headerAction, isHeaderAction = true))
         }
 
         // Add action strip if present
@@ -211,7 +296,7 @@ class AndroidAutoScreen(
         // Add header action if present
         val headerAction = templateConfig["headerAction"] as? Map<String, Any>
         if (headerAction != null) {
-            builder.setHeaderAction(createAction(headerAction))
+            builder.setHeaderAction(createAction(headerAction, isHeaderAction = true))
         }
 
         // Add action strip if present
@@ -227,8 +312,53 @@ class AndroidAutoScreen(
         return builder.build()
     }
 
-    private fun createRow(rowConfig: Map<String, Any>): Row {
-        android.util.Log.d("AndroidAuto", "createRow called with keys: ${rowConfig.keys.joinToString()}")
+    private fun createPaneTemplate(templateConfig: Map<String, Any>): PaneTemplate {
+        val paneBuilder = Pane.Builder()
+
+        // Add rows to the pane
+        val rows = templateConfig["rows"] as? List<Map<String, Any>> ?: emptyList()
+        rows.forEach { rowConfig ->
+            // PaneTemplate rows cannot have click listeners
+            paneBuilder.addRow(createRow(rowConfig, allowClickListener = false))
+        }
+
+        // Add actions to the pane (these appear as buttons)
+        val actions = templateConfig["actions"] as? List<Map<String, Any>> ?: emptyList()
+        actions.forEach { actionConfig ->
+            paneBuilder.addAction(createAction(actionConfig))
+        }
+
+        // Set loading state
+        val isLoading = templateConfig["isLoading"] as? Boolean ?: false
+        paneBuilder.setLoading(isLoading)
+
+        val builder = PaneTemplate.Builder(paneBuilder.build())
+
+        // Set title
+        val title = templateConfig["title"] as? String ?: "Details"
+        builder.setTitle(title)
+
+        // Add header action if present
+        val headerAction = templateConfig["headerAction"] as? Map<String, Any>
+        if (headerAction != null) {
+            builder.setHeaderAction(createAction(headerAction, isHeaderAction = true))
+        }
+
+        // Add action strip if present
+        val actionStrip = templateConfig["actionStrip"] as? List<Map<String, Any>>
+        if (actionStrip != null) {
+            val actionStripBuilder = ActionStrip.Builder()
+            actionStrip.forEach { actionConfig ->
+                actionStripBuilder.addAction(createAction(actionConfig))
+            }
+            builder.setActionStrip(actionStripBuilder.build())
+        }
+
+        return builder.build()
+    }
+
+    private fun createRow(rowConfig: Map<String, Any>, allowClickListener: Boolean = true): Row {
+        android.util.Log.d("AndroidAuto", "createRow called with keys: ${rowConfig.keys.joinToString()}, allowClickListener: $allowClickListener")
         val title = rowConfig["title"] as? String ?: "Row"
         android.util.Log.d("AndroidAuto", "Row title: $title")
         val rowBuilder = Row.Builder().setTitle(title)
@@ -245,10 +375,10 @@ class AndroidAutoScreen(
             }
         }
 
-        // Add click listener - check for id instead of onPress
+        // Add click listener - only if allowed (not allowed for PaneTemplate rows)
         val itemId = rowConfig["id"] as? String
         android.util.Log.d("AndroidAuto", "Row itemId: $itemId")
-        if (itemId != null) {
+        if (itemId != null && allowClickListener) {
             rowBuilder.setOnClickListener {
                 android.util.Log.d("AndroidAuto", "Row clicked: $itemId on screen: $screenName")
                 // Create a clean map with only serializable data
@@ -286,8 +416,20 @@ class AndroidAutoScreen(
         return rowBuilder.build()
     }
 
-    private fun createAction(actionConfig: Map<String, Any>): Action {
+    private fun createAction(actionConfig: Map<String, Any>, isHeaderAction: Boolean = false): Action {
         val title = actionConfig["title"] as? String ?: "Action"
+        
+        // For header actions, use standard actions when the title matches
+        if (isHeaderAction) {
+            val lowerTitle = title.lowercase()
+            if (lowerTitle == "back" || lowerTitle.contains("back")) {
+                return Action.BACK
+            }
+            if (lowerTitle == "app icon" || lowerTitle == "app_icon") {
+                return Action.APP_ICON
+            }
+        }
+        
         val actionBuilder = Action.Builder().setTitle(title)
 
         // Add click listener - check for id instead of onPress

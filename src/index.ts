@@ -57,7 +57,17 @@ export interface MessageTemplateConfig {
   actionStrip?: Action[];
 }
 
-export type TemplateConfig = ListTemplateConfig | MessageTemplateConfig;
+export interface PaneTemplateConfig {
+  type: 'PaneTemplate';
+  title: string;
+  rows?: Row[];           // Information rows displayed in the pane
+  actions?: Action[];     // Action buttons displayed in the pane
+  isLoading?: boolean;
+  headerAction?: Action;
+  actionStrip?: Action[];
+}
+
+export type TemplateConfig = ListTemplateConfig | MessageTemplateConfig | PaneTemplateConfig;
 
 export interface ScreenConfig {
   name: string;
@@ -69,6 +79,47 @@ export interface UserInteractionData {
   screen: string;
   data: any;
 }
+
+// Media types and interfaces
+export interface MediaItem {
+  id: string;
+  title: string;
+  artist?: string;
+  album?: string;
+  duration?: number;      // milliseconds
+  artworkUri?: string;    // URL or local file path
+  mediaUri?: string;      // Optional - for your app's reference
+  playable?: boolean;     // true = track, false = folder/playlist
+  browsable?: boolean;    // Can contain children
+  children?: MediaItem[]; // Nested items for playlists
+}
+
+export type PlaybackStateType = 'none' | 'stopped' | 'paused' | 'playing' | 'buffering' | 'error';
+
+export interface PlaybackState {
+  state: PlaybackStateType;
+  position: number;       // Current position in ms
+  duration: number;       // Total duration in ms
+  speed?: number;         // Playback speed (default 1.0)
+}
+
+export interface CurrentTrack {
+  id: string;
+  title: string;
+  artist?: string;
+  album?: string;
+  artworkUri?: string;
+  duration: number;
+}
+
+export type MediaCommand = 
+  | { command: 'play' }
+  | { command: 'pause' }
+  | { command: 'stop' }
+  | { command: 'skipNext' }
+  | { command: 'skipPrevious' }
+  | { command: 'seekTo'; position: number }
+  | { command: 'playFromId'; mediaId: string };
 
 // Helper functions to create templates
 export function createListTemplate(config: Omit<ListTemplateConfig, 'type'>): ListTemplateConfig {
@@ -91,6 +142,13 @@ export function createListTemplate(config: Omit<ListTemplateConfig, 'type'>): Li
 export function createMessageTemplate(config: Omit<MessageTemplateConfig, 'type'>): MessageTemplateConfig {
   return {
     type: 'MessageTemplate',
+    ...config
+  };
+}
+
+export function createPaneTemplate(config: Omit<PaneTemplateConfig, 'type'>): PaneTemplateConfig {
+  return {
+    type: 'PaneTemplate',
     ...config
   };
 }
@@ -186,6 +244,45 @@ function prepareScreenConfigForNative(screenConfig: ScreenConfig): ScreenConfig 
       });
     }
   }
+
+  // Process PaneTemplate
+  if (originalTemplate.type === 'PaneTemplate') {
+    // Process rows
+    if (originalTemplate.rows) {
+      originalTemplate.rows.forEach((row: any, index: number) => {
+        const rowId = `${screenName}_row_${index}`;
+        if (row.onPress && typeof row.onPress === 'function') {
+          callbacks.set(rowId, row.onPress);
+        }
+      });
+    }
+    
+    // Process pane actions
+    if (originalTemplate.actions) {
+      originalTemplate.actions.forEach((action: any, index: number) => {
+        const actionId = `${screenName}_action_${index}`;
+        if (action.onPress && typeof action.onPress === 'function') {
+          callbacks.set(actionId, action.onPress);
+        }
+      });
+    }
+    
+    // Process headerAction
+    if (originalTemplate.headerAction?.onPress && typeof originalTemplate.headerAction.onPress === 'function') {
+      const actionId = `${screenName}_headerAction`;
+      callbacks.set(actionId, originalTemplate.headerAction.onPress);
+    }
+    
+    // Process actionStrip
+    if (originalTemplate.actionStrip) {
+      originalTemplate.actionStrip.forEach((action: any, index: number) => {
+        const actionId = `${screenName}_actionStrip_${index}`;
+        if (action.onPress && typeof action.onPress === 'function') {
+          callbacks.set(actionId, action.onPress);
+        }
+      });
+    }
+  }
   
   // Now clone without functions and add IDs
   const processedTemplate = cloneWithoutFunctions(originalTemplate);
@@ -221,6 +318,30 @@ function prepareScreenConfigForNative(screenConfig: ScreenConfig): ScreenConfig 
   }
   
   if (processedTemplate.type === 'MessageTemplate') {
+    if (processedTemplate.headerAction) {
+      processedTemplate.headerAction = { ...processedTemplate.headerAction, id: `${screenName}_headerAction` };
+    }
+    
+    if (processedTemplate.actionStrip) {
+      processedTemplate.actionStrip = processedTemplate.actionStrip.map((action: any, index: number) => {
+        return { ...action, id: `${screenName}_actionStrip_${index}` };
+      });
+    }
+  }
+
+  if (processedTemplate.type === 'PaneTemplate') {
+    if (processedTemplate.rows) {
+      processedTemplate.rows = processedTemplate.rows.map((row: any, index: number) => {
+        return { ...row, id: `${screenName}_row_${index}` };
+      });
+    }
+    
+    if (processedTemplate.actions) {
+      processedTemplate.actions = processedTemplate.actions.map((action: any, index: number) => {
+        return { ...action, id: `${screenName}_action_${index}` };
+      });
+    }
+    
     if (processedTemplate.headerAction) {
       processedTemplate.headerAction = { ...processedTemplate.headerAction, id: `${screenName}_headerAction` };
     }
@@ -272,7 +393,8 @@ function ensureInternalListenerSetup() {
     }
     
     const screenName = rawData.screen;
-    const itemId = rawData.id;
+    // The id can be at rawData.id (for rows) or rawData.data?.id (for actions)
+    const itemId = rawData.id || rawData.data?.id;
     
     console.log('[AndroidAuto] Looking up callback for screen:', screenName, 'itemId:', itemId);
     
@@ -318,7 +440,16 @@ class AndroidAuto {
     if (callbacks) {
       console.log(`[AndroidAuto] Registered screen '${screenConfig.name}' with ${callbacks.size} callbacks:`, Array.from(callbacks.keys()));
     }
-    return AndroidAutoModule.registerScreen(preparedConfig);
+    console.log(`[AndroidAuto] Calling native registerScreen for '${screenConfig.name}'`);
+    try {
+      // Convert to JSON string to avoid Expo type conversion issues with nested objects
+      const configJson = JSON.stringify(preparedConfig);
+      await AndroidAutoModule.registerScreen(configJson);
+      console.log(`[AndroidAuto] Native registerScreen completed for '${screenConfig.name}'`);
+    } catch (e) {
+      console.error(`[AndroidAuto] Native registerScreen FAILED for '${screenConfig.name}':`, e);
+      throw e;
+    }
   }
 
   /**

@@ -6,11 +6,47 @@ import expo.modules.kotlin.Promise
 import android.os.Handler
 import android.os.Looper
 import androidx.core.os.bundleOf
+import org.json.JSONObject
+import org.json.JSONArray
 
 /**
  * Main Expo module for Android Auto integration
  */
 class AndroidAutoModule : Module() {
+  
+  // Helper function to parse JSON string to Map
+  private fun parseJsonToMap(jsonString: String): Map<String, Any> {
+    val jsonObject = JSONObject(jsonString)
+    return jsonObjectToMap(jsonObject)
+  }
+  
+  private fun jsonObjectToMap(jsonObject: JSONObject): Map<String, Any> {
+    val map = mutableMapOf<String, Any>()
+    val keys = jsonObject.keys()
+    while (keys.hasNext()) {
+      val key = keys.next()
+      val value = jsonObject.get(key)
+      map[key] = convertJsonValue(value)
+    }
+    return map
+  }
+  
+  private fun jsonArrayToList(jsonArray: JSONArray): List<Any> {
+    val list = mutableListOf<Any>()
+    for (i in 0 until jsonArray.length()) {
+      list.add(convertJsonValue(jsonArray.get(i)))
+    }
+    return list
+  }
+  
+  private fun convertJsonValue(value: Any): Any {
+    return when (value) {
+      is JSONObject -> jsonObjectToMap(value)
+      is JSONArray -> jsonArrayToList(value)
+      JSONObject.NULL -> "" // Convert null to empty string
+      else -> value
+    }
+  }
   
   // Public method to send events from outside the Module class
   // This ensures we use the Module's own sendEvent method
@@ -86,13 +122,6 @@ class AndroidAutoModule : Module() {
 
       this@AndroidAutoModule.sendEvent("onTestEvent", bundleOf("value" to "Test from OnCreate"))
 
-      // this@ClipboardModule.sendEvent(
-      //   CLIPBOARD_CHANGED_EVENT_NAME,
-      //   bundleOf(
-      //     "contentTypes" to availableContentTypes(clip)
-      //   )
-      // )
-      
       // Test sending an event immediately to see if it works
       android.util.Log.d("AndroidAuto", "[Module] Testing event send from OnCreate...")
       try {
@@ -108,11 +137,14 @@ class AndroidAutoModule : Module() {
     }
 
     // Register a screen with template
-    AsyncFunction("registerScreen") { screenConfig: Map<String, Any>, promise: Promise ->
+    // Accept JSON string to avoid Expo type conversion issues with nested objects
+    AsyncFunction("registerScreen") { screenConfigJson: String, promise: Promise ->
       try {
+        val screenConfig = parseJsonToMap(screenConfigJson)
         AndroidAutoCarAppService.registerScreen(screenConfig)
         promise.resolve(null)
       } catch (e: Exception) {
+        android.util.Log.e("AndroidAuto", "[Module] registerScreen error: ${e.message}", e)
         promise.reject("REGISTER_SCREEN_ERROR", "Failed to register screen: ${e.message}", e)
       }
     }
@@ -223,6 +255,6 @@ class AndroidAutoModule : Module() {
         promise.reject("SEND_TEST_EVENT_ERROR", "Failed: ${e.message}", e)
       }
     }
+
   }
 }
-
