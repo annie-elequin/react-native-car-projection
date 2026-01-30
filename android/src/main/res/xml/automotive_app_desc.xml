@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <automotiveApp>
   <uses name="template" />
+  <uses name="media" />
   <library name="androidx.car.app.CarAppLibrary" />
   <api name="androidx.car.app" minApiLevel="1" targetApiLevel="6" />
 </automotiveApp>

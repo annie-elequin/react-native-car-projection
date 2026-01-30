@@ -21,27 +21,27 @@ class AndroidAutoCarAppService : CarAppService() {
         }
 
         fun registerScreen(screenConfig: Map<String, Any>) {
-            android.util.Log.d("AndroidAuto", "registerScreen called")
             val name = screenConfig["name"] as? String 
                 ?: throw IllegalArgumentException("Screen name is required")
-            android.util.Log.d("AndroidAuto", "Registering screen: $name")
-            
-            // Log template type
-            val template = screenConfig["template"] as? Map<String, Any>
-            if (template != null) {
-                android.util.Log.d("AndroidAuto", "Template type: ${template["type"]}")
-                val items = template["items"] as? List<*>
-                android.util.Log.d("AndroidAuto", "Items count: ${items?.size ?: 0}")
-            }
-            
+            val isFirstMainScreen = (name == "main" || name == "root") && !registeredScreens.containsKey("main") && !registeredScreens.containsKey("root")
             registeredScreens[name] = screenConfig
-            android.util.Log.d("AndroidAuto", "Screen registered successfully. Total screens: ${registeredScreens.size}")
+            android.util.Log.d("AndroidAuto", "[Service] Registered screen: $name, total screens: ${registeredScreens.size}, isFirstMainScreen: $isFirstMainScreen")
+            
+            // If this is the first main/root screen and we have an active session, refresh to replace DefaultScreen
+            if (isFirstMainScreen && currentSession != null && isSessionActive) {
+                android.util.Log.d("AndroidAuto", "[Service] First main screen registered with active session, refreshing display")
+                // Use a handler to ensure this runs on the main thread
+                android.os.Handler(android.os.Looper.getMainLooper()).post {
+                    currentSession?.refreshCurrentScreen()
+                }
+            }
         }
 
         fun getRegisteredScreens(): Map<String, Map<String, Any>> = registeredScreens
 
         fun navigateToScreen(screenName: String, params: Map<String, Any>? = null) {
             currentSession?.navigateToScreen(screenName, params)
+                ?: android.util.Log.e("AndroidAuto", "Cannot navigate: no active session")
         }
 
         fun updateScreen(screenName: String, template: Map<String, Any>) {
@@ -70,10 +70,18 @@ class AndroidAutoCarAppService : CarAppService() {
 
         fun sendEventToJS(eventName: String, data: Any?) {
             try {
-                moduleInstance?.sendEvent(eventName, mapOf("data" to data))
+                if (moduleInstance == null) {
+                    android.util.Log.e("AndroidAuto", "Cannot send event '$eventName': moduleInstance is null")
+                    return
+                }
+                
+                android.util.Log.d("AndroidAuto", "[Service] Calling Module.sendEventToJS for '$eventName'")
+                // Call the Module's own method to send events (ensures we use Module's sendEvent)
+                moduleInstance?.sendEventToJS(eventName, data)
+                android.util.Log.d("AndroidAuto", "[Service] Module.sendEventToJS call completed")
             } catch (e: Exception) {
-                // Log error but don't crash
-                android.util.Log.e("AndroidAutoCarAppService", "Failed to send event to JS: ${e.message}")
+                android.util.Log.e("AndroidAutoCarAppService", "Failed to send event to JS: ${e.message}", e)
+                e.printStackTrace()
             }
         }
 
@@ -101,10 +109,11 @@ class AndroidAutoCarAppService : CarAppService() {
     }
 
     override fun onCreateSession(): Session {
+        android.util.Log.d("AndroidAuto", "[Service] onCreateSession called")
         val session = AndroidAutoSession()
         setCurrentSession(session)
-        setSessionActive(true)
-        
+        // Don't set active here - let the session's lifecycle observer handle it
+        // This ensures isConnected() only returns true when the session is fully ready
         return session
     }
 

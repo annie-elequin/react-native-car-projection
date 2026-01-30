@@ -10,7 +10,10 @@ const withAndroidAuto = (config, options = {}) => {
     minCarApiLevel = 1,
     targetCarApiLevel = 6,
     customPermissions = [],
-    javaVersion = 'VERSION_17' // Default to JVM 17 for modern RN projects
+    javaVersion = 'VERSION_17', // Default to JVM 17 for modern RN projects
+    mediaSupport = true, // Enable MediaBrowserService for automatic audio routing when Android Auto connects
+    mediaSessionService = 'com.doublesymmetry.trackplayer.service.MusicService', // Optional: external media session service (e.g. track-player)
+    mediaOnly = false // If true, only MediaBrowserService (no Car App). DHU uses MediaBrowserService when user selects app, like Spotify.
   } = options;
 
   // Add Android Auto manifest configuration
@@ -25,11 +28,11 @@ const withAndroidAuto = (config, options = {}) => {
       throw new Error('Android manifest not found');
     }
 
-    // Add Android Auto metadata
+    // Add Android Auto metadata (mediaOnly uses descriptor without Car App Library so DHU discovers us as MediaBrowserService)
     const carAppMetadata = {
       $: {
         'android:name': 'com.google.android.gms.car.application',
-        'android:resource': '@xml/automotive_app_desc'
+        'android:resource': mediaOnly ? '@xml/automotive_app_desc_media_only' : '@xml/automotive_app_desc'
       }
     };
 
@@ -96,13 +99,44 @@ const withAndroidAuto = (config, options = {}) => {
       application['meta-data'].push(minCarApiLevelMetadata);
     }
 
-    // Add service if it doesn't exist
-    const existingService = application.service.find(
-      (service) => service.$['android:name'] === 'expo.modules.androidauto.AndroidAutoCarAppService'
-    );
+    // Add Car App Service only when not mediaOnly (mediaOnly = MediaBrowserService only, like Spotify)
+    if (!mediaOnly) {
+      const existingCarAppService = application.service.find(
+        (service) => service.$['android:name'] === 'expo.modules.androidauto.AndroidAutoCarAppService'
+      );
 
-    if (!existingService) {
-      application.service.push(carAppService);
+      if (!existingCarAppService) {
+        application.service.push(carAppService);
+      }
+    }
+
+    // Add MediaBrowserService when mediaSupport is true (enables automatic audio routing when Android Auto connects)
+    if (mediaSupport) {
+      const mediaBrowserService = {
+        $: {
+          'android:name': 'expo.modules.androidauto.AndroidAutoMediaBrowserService',
+          'android:exported': 'true'
+        },
+        'intent-filter': [
+          {
+            action: [
+              {
+                $: {
+                  'android:name': 'android.media.browse.MediaBrowserService'
+                }
+              }
+            ]
+          }
+        ]
+      };
+
+      const existingMediaBrowserService = application.service.find(
+        (service) => service.$['android:name'] === 'expo.modules.androidauto.AndroidAutoMediaBrowserService'
+      );
+
+      if (!existingMediaBrowserService) {
+        application.service.push(mediaBrowserService);
+      }
     }
 
     // Add uses-permission for Android Auto
@@ -208,11 +242,12 @@ const withAndroidAuto = (config, options = {}) => {
 };
 
 // Helper function to create the automotive app descriptor file content
-function createAutomotiveAppDescriptor(carAppCategory, minApiLevel, targetApiLevel) {
+function createAutomotiveAppDescriptor(carAppCategory, minApiLevel, targetApiLevel, includeMedia = true) {
+  const mediaLine = includeMedia ? '  <uses name="media" />\n' : '';
   return `<?xml version="1.0" encoding="utf-8"?>
 <automotiveApp>
   <uses name="template" />
-  <library name="androidx.car.app.CarAppLibrary" />
+${mediaLine}  <library name="androidx.car.app.CarAppLibrary" />
   <api name="androidx.car.app" minApiLevel="${minApiLevel}" targetApiLevel="${targetApiLevel}" />
 </automotiveApp>`;
 }
