@@ -112,7 +112,7 @@ class AndroidAutoModule : Module() {
     Name("AndroidAuto")
 
     // Define events that can be sent to JavaScript
-    Events("onSessionStarted", "onSessionEnded", "onScreenChanged", "onUserInteraction", "onTestEvent")
+    Events("onSessionStarted", "onSessionEnded", "onScreenChanged", "onUserInteraction", "onTestEvent", "onMediaBrowserConnected", "onMediaPlay", "onMediaPause", "onMediaStop", "onMediaSkipToNext", "onMediaSkipToPrevious", "onMediaSeekTo")
 
     // Initialize the module
     OnCreate {
@@ -253,6 +253,42 @@ class AndroidAutoModule : Module() {
       } catch (e: Exception) {
         android.util.Log.e("AndroidAuto", "[TEST] Error: ${e.message}", e)
         promise.reject("SEND_TEST_EVENT_ERROR", "Failed: ${e.message}", e)
+      }
+    }
+
+    // Configure the MediaBrowserService to use an external media session (e.g., track-player).
+    // Call this at app startup so Android Auto can route audio when it connects.
+    // If packageName is blank, uses the app's own package.
+    AsyncFunction("configureMediaSession") { packageName: String, serviceName: String, promise: Promise ->
+      try {
+        val pkg = if (packageName.isBlank()) appContext.reactContext?.packageName ?: "" else packageName
+        AndroidAutoMediaBrowserService.configure(pkg, serviceName)
+        promise.resolve(null)
+      } catch (e: Exception) {
+        android.util.Log.e("AndroidAuto", "[Module] configureMediaSession error: ${e.message}", e)
+        promise.reject("CONFIGURE_MEDIA_SESSION_ERROR", "Failed to configure media session: ${e.message}", e)
+      }
+    }
+
+    // Update MediaBrowserService MediaSession playback state and metadata so Android Auto
+    // sees our app as the active media source and routes audio. Call when TrackPlayer state/track changes.
+    AsyncFunction("updateMediaPlaybackState") { stateStr: String, positionSeconds: Double, durationSeconds: Double, title: String?, artist: String?, promise: Promise ->
+      try {
+        val state = when (stateStr.lowercase()) {
+          "playing" -> android.support.v4.media.session.PlaybackStateCompat.STATE_PLAYING
+          "paused" -> android.support.v4.media.session.PlaybackStateCompat.STATE_PAUSED
+          "stopped", "none" -> android.support.v4.media.session.PlaybackStateCompat.STATE_STOPPED
+          "buffering" -> android.support.v4.media.session.PlaybackStateCompat.STATE_BUFFERING
+          "error" -> android.support.v4.media.session.PlaybackStateCompat.STATE_ERROR
+          else -> android.support.v4.media.session.PlaybackStateCompat.STATE_NONE
+        }
+        val positionMs = (positionSeconds * 1000).toLong()
+        val durationMs = (durationSeconds * 1000).toLong()
+        AndroidAutoMediaBrowserService.updatePlaybackState(state, positionMs, durationMs, title ?: "", artist ?: "")
+        promise.resolve(null)
+      } catch (e: Exception) {
+        android.util.Log.e("AndroidAuto", "[Module] updateMediaPlaybackState error: ${e.message}", e)
+        promise.reject("UPDATE_MEDIA_PLAYBACK_STATE_ERROR", e.message, e)
       }
     }
 

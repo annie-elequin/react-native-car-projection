@@ -12,6 +12,8 @@ interface AndroidAutoNativeModuleInterface {
   popScreen: () => Promise<void>;
   popToRoot: () => Promise<void>;
   sendTestEvent: (message: string) => Promise<void>;
+  configureMediaSession: (packageName: string, serviceName: string) => Promise<void>;
+  updateMediaPlaybackState: (state: string, positionSeconds: number, durationSeconds: number, title: string | null, artist: string | null) => Promise<void>;
   addListener: (eventName: string, listener: (event: any) => void) => { remove: () => void };
 }
 
@@ -82,6 +84,15 @@ const AndroidAutoModule = {
   
   sendTestEvent: AndroidAutoNativeModule
     ? (message: string) => AndroidAutoNativeModule.sendTestEvent(message)
+    : notAvailableError,
+  
+  configureMediaSession: AndroidAutoNativeModule
+    ? (packageName: string, serviceName: string) => AndroidAutoNativeModule.configureMediaSession(packageName, serviceName)
+    : notAvailableError,
+
+  updateMediaPlaybackState: AndroidAutoNativeModule
+    ? (state: string, positionSeconds: number, durationSeconds: number, title: string | null, artist: string | null) =>
+        AndroidAutoNativeModule.updateMediaPlaybackState(state, positionSeconds, durationSeconds, title, artist)
     : notAvailableError,
   
   // Event listener - CRITICAL: Call addListener as a method on the native module

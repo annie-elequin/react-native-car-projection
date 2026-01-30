@@ -518,6 +518,40 @@ class AndroidAuto {
     console.log('[TEST] ✓ Sent (promise resolved)');
   }
 
+  /**
+   * Configure the MediaBrowserService to use an external media session (e.g., react-native-track-player).
+   * Call this at app startup so Android Auto can route audio when it connects.
+   * @param options.packageName - Package hosting the media session; defaults to app package if omitted.
+   * @param options.serviceName - Fully-qualified service class name (e.g. "com.doublesymmetry.trackplayer.service.MusicService")
+   */
+  async configureMediaSession(options: {
+    packageName?: string;
+    serviceName: string;
+  }): Promise<void> {
+    const packageName = options.packageName ?? '';
+    await AndroidAutoModule.configureMediaSession(packageName, options.serviceName);
+  }
+
+  /**
+   * Update the MediaBrowserService MediaSession playback state and metadata so Android Auto
+   * sees our app as the active media source and routes audio. Call when TrackPlayer state or track changes.
+   */
+  async updateMediaPlaybackState(options: {
+    state: PlaybackStateType;
+    position: number;
+    duration: number;
+    title?: string;
+    artist?: string;
+  }): Promise<void> {
+    await AndroidAutoModule.updateMediaPlaybackState(
+      options.state,
+      options.position,
+      options.duration,
+      options.title ?? null,
+      options.artist ?? null
+    );
+  }
+
   // Event listeners
   /**
    * Listen for session started events
@@ -531,6 +565,35 @@ class AndroidAuto {
    */
   addSessionEndedListener(listener: () => void): Subscription {
     return AndroidAutoModule.addListener('onSessionEnded', listener);
+  }
+
+  /**
+   * Listen for Android Auto connecting via MediaBrowser (e.g. when audio can route to the car).
+   */
+  addMediaBrowserConnectedListener(listener: () => void): Subscription {
+    return AndroidAutoModule.addListener('onMediaBrowserConnected', listener);
+  }
+
+  /**
+   * Listen for play command from the car (e.g. user taps Play on DHU).
+   * App should resume current track or start playback (e.g. first recently played).
+   */
+  addMediaPlayListener(listener: () => void): Subscription {
+    return AndroidAutoModule.addListener('onMediaPlay', listener);
+  }
+
+  /**
+   * Listen for pause command from the car.
+   */
+  addMediaPauseListener(listener: () => void): Subscription {
+    return AndroidAutoModule.addListener('onMediaPause', listener);
+  }
+
+  /**
+   * Listen for stop command from the car.
+   */
+  addMediaStopListener(listener: () => void): Subscription {
+    return AndroidAutoModule.addListener('onMediaStop', listener);
   }
 
   /**
