@@ -60,6 +60,18 @@ npx expo prebuild --clean
 npx expo run:android
 ```
 
+## Example apps (app types)
+
+The plugin supports three app types. Example apps for each are available in the [TestCarProjection](https://github.com/annie-elequin/TestCarProjection) repository under the `examples/` directory:
+
+| Type | Config | Description | Example app |
+|------|--------|-------------|-------------|
+| **Car App only (no media)** | `mediaSupport: false`, `mediaOnly: false`, `carAppCategory` e.g. `"navigation"` | No MediaBrowserService. Car App template UI only. | [examples/TestCarAppOnly](https://github.com/annie-elequin/TestCarProjection/tree/main/examples/TestCarAppOnly) |
+| **Car App + media** | `mediaOnly: false`, `mediaSupport: true` | Car App Service and MediaBrowserService. Template UI and now-playing slot. | [examples/TestCarAppPlusMedia](https://github.com/annie-elequin/TestCarProjection/tree/main/examples/TestCarAppPlusMedia) |
+| **Media only** | `mediaOnly: true`, `mediaSupport: true` | MediaBrowserService only (no Car App). Browse + now-playing, like Spotify. | [examples/TestMediaOnly](https://github.com/annie-elequin/TestCarProjection/tree/main/examples/TestMediaOnly) |
+
+Each example app runs on both iOS and Android; Android Auto–specific behavior applies on Android when connected to a head unit or DHU. See [examples/README.md](https://github.com/annie-elequin/TestCarProjection/blob/main/examples/README.md) for how to run them.
+
 ## 🎯 Quick Start
 
 ```typescript
@@ -90,6 +102,28 @@ export default function App() {
 
   return <YourAppContent />;
 }
+```
+
+### Media-only mode: browse content (setMediaBrowseTree)
+
+When using `mediaOnly: true`, you can set the MediaBrowser browse tree so the car shows available items (e.g. Recently Played, playlists, tracks). Call `setMediaBrowseTree` with a map where keys are parent IDs and values are arrays of `MediaItem`. The root key must be `"__ROOT__"`. Use `addMediaPlayFromIdListener` to start playback when the user taps a playable item.
+
+```typescript
+// Example: root with one folder and one track
+await CarProjection.setMediaBrowseTree({
+  __ROOT__: [
+    { id: 'playlist_1', title: 'Recently Played', browsable: true, playable: false },
+    { id: 'track_1', title: 'Song Title', artist: 'Artist', playable: true },
+  ],
+  playlist_1: [
+    { id: 'track_2', title: 'Another Song', artist: 'Artist', playable: true },
+  ],
+});
+
+CarProjection.addMediaPlayFromIdListener((event) => {
+  // Start playing the track with id event.mediaId
+  playTrackById(event.mediaId);
+});
 ```
 
 For more detailed documentation, see the full README in the repository.
