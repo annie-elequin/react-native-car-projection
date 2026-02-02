@@ -14,6 +14,7 @@ interface AndroidAutoNativeModuleInterface {
   sendTestEvent: (message: string) => Promise<void>;
   configureMediaSession: (packageName: string, serviceName: string) => Promise<void>;
   updateMediaPlaybackState: (state: string, positionSeconds: number, durationSeconds: number, title: string | null, artist: string | null) => Promise<void>;
+  setMediaBrowseTree: (json: string) => Promise<void>;
   addListener: (eventName: string, listener: (event: any) => void) => { remove: () => void };
 }
 
@@ -93,6 +94,10 @@ const AndroidAutoModule = {
   updateMediaPlaybackState: AndroidAutoNativeModule
     ? (state: string, positionSeconds: number, durationSeconds: number, title: string | null, artist: string | null) =>
         AndroidAutoNativeModule.updateMediaPlaybackState(state, positionSeconds, durationSeconds, title, artist)
+    : notAvailableError,
+
+  setMediaBrowseTree: AndroidAutoNativeModule
+    ? (json: string) => AndroidAutoNativeModule.setMediaBrowseTree(json)
     : notAvailableError,
   
   // Event listener - CRITICAL: Call addListener as a method on the native module

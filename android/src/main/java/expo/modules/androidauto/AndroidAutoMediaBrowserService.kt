@@ -1,9 +1,11 @@
 package expo.modules.androidauto
 
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.media.MediaBrowserServiceCompat
 import android.support.v4.media.MediaBrowserCompat
+import android.support.v4.media.MediaDescriptionCompat
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
@@ -36,6 +38,25 @@ class AndroidAutoMediaBrowserService : MediaBrowserServiceCompat() {
 
         @Volatile
         private var currentSession: MediaSessionCompat? = null
+
+        /** Browse tree: parentId -> list of item maps (id, title, artist, playable, browsable, etc.). Root key is "__ROOT__". */
+        @Volatile
+        private var browseTree: Map<String, List<Map<String, Any>>>? = null
+
+        /**
+         * Set the browse tree for MediaBrowser. Keys are parent IDs (root must be "__ROOT__");
+         * values are lists of item maps with id, title, artist, playable, browsable, artworkUri, etc.
+         */
+        fun setBrowseTree(tree: Map<String, Any>) {
+            val converted = tree.mapValues { (_, value) ->
+                @Suppress("UNCHECKED_CAST")
+                (value as? List<*>)?.mapNotNull { item ->
+                    item as? Map<String, Any>
+                } ?: emptyList()
+            }
+            browseTree = converted
+            Log.d(TAG, "[MediaBrowserService] setBrowseTree: ${converted.keys.size} parent(s)")
+        }
 
         private fun logToFile(context: android.content.Context, message: String) {
             try {
@@ -130,7 +151,36 @@ class AndroidAutoMediaBrowserService : MediaBrowserServiceCompat() {
         result: MediaBrowserServiceCompat.Result<MutableList<MediaBrowserCompat.MediaItem>>
     ) {
         Log.d(TAG, "[MediaBrowserService] onLoadChildren parentId=$parentId")
-        result.sendResult(mutableListOf())
+        val tree = browseTree
+        if (tree == null) {
+            result.sendResult(mutableListOf())
+            return
+        }
+        val items = tree[parentId] ?: emptyList()
+        val mediaItems = items.mapNotNull { item ->
+            val id = item["id"]?.toString() ?: return@mapNotNull null
+            val title = item["title"]?.toString() ?: ""
+            val artist = item["artist"]?.toString()
+            val artworkUriStr = item["artworkUri"]?.toString()
+            val playable = (item["playable"] as? Boolean) ?: true
+            val browsable = (item["browsable"] as? Boolean) ?: false
+            val flags = when {
+                playable && browsable -> MediaBrowserCompat.MediaItem.FLAG_PLAYABLE or MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+                playable -> MediaBrowserCompat.MediaItem.FLAG_PLAYABLE
+                else -> MediaBrowserCompat.MediaItem.FLAG_BROWSABLE
+            }
+            val descBuilder = MediaDescriptionCompat.Builder()
+                .setMediaId(id)
+                .setTitle(title)
+            artist?.let { descBuilder.setSubtitle(it) }
+            if (!artworkUriStr.isNullOrBlank()) {
+                try {
+                    descBuilder.setIconUri(Uri.parse(artworkUriStr))
+                } catch (_: Exception) { }
+            }
+            MediaBrowserCompat.MediaItem(descBuilder.build(), flags)
+        }
+        result.sendResult(mediaItems.toMutableList())
     }
 
     override fun onDestroy() {
@@ -169,6 +219,13 @@ class AndroidAutoMediaBrowserService : MediaBrowserServiceCompat() {
         override fun onSeekTo(pos: Long) {
             Log.d(TAG, "[MediaBrowserService] onSeekTo $pos - forwarding to JS")
             AndroidAutoCarAppService.sendEventToJS("onMediaSeekTo", mapOf("position" to pos))
+        }
+
+        override fun onPlayFromMediaId(mediaId: String?, extras: Bundle?) {
+            if (!mediaId.isNullOrBlank()) {
+                Log.d(TAG, "[MediaBrowserService] onPlayFromMediaId $mediaId - forwarding to JS")
+                AndroidAutoCarAppService.sendEventToJS("onMediaPlayFromId", mapOf("mediaId" to mediaId))
+            }
         }
     }
 }

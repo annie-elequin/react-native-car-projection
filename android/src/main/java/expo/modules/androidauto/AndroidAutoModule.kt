@@ -112,7 +112,7 @@ class AndroidAutoModule : Module() {
     Name("AndroidAuto")
 
     // Define events that can be sent to JavaScript
-    Events("onSessionStarted", "onSessionEnded", "onScreenChanged", "onUserInteraction", "onTestEvent", "onMediaBrowserConnected", "onMediaPlay", "onMediaPause", "onMediaStop", "onMediaSkipToNext", "onMediaSkipToPrevious", "onMediaSeekTo")
+    Events("onSessionStarted", "onSessionEnded", "onScreenChanged", "onUserInteraction", "onTestEvent", "onMediaBrowserConnected", "onMediaPlay", "onMediaPause", "onMediaStop", "onMediaSkipToNext", "onMediaSkipToPrevious", "onMediaSeekTo", "onMediaPlayFromId")
 
     // Initialize the module
     OnCreate {
@@ -289,6 +289,19 @@ class AndroidAutoModule : Module() {
       } catch (e: Exception) {
         android.util.Log.e("AndroidAuto", "[Module] updateMediaPlaybackState error: ${e.message}", e)
         promise.reject("UPDATE_MEDIA_PLAYBACK_STATE_ERROR", e.message, e)
+      }
+    }
+
+    // Set the MediaBrowser browse tree so Android Auto can show available items (playlists, tracks).
+    // JSON shape: { "__ROOT__": [ { "id", "title", "playable", "browsable", ... }, ... ], "parentId": [ ... ], ... }
+    AsyncFunction("setMediaBrowseTree") { json: String, promise: Promise ->
+      try {
+        val tree = parseJsonToMap(json)
+        AndroidAutoMediaBrowserService.setBrowseTree(tree)
+        promise.resolve(null)
+      } catch (e: Exception) {
+        android.util.Log.e("AndroidAuto", "[Module] setMediaBrowseTree error: ${e.message}", e)
+        promise.reject("SET_MEDIA_BROWSE_TREE_ERROR", "Failed to set media browse tree: ${e.message}", e)
       }
     }
 
