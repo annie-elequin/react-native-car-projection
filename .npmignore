@@ -1,0 +1,31 @@
+# Development files
+.eslintrc.js
+tsconfig.json
+DEVELOPMENT.md
+TESTING.md
+*.tsbuildinfo
+
+# IDE/OS files
+.idea/
+.vscode/
+.DS_Store
+
+# Test files
+__tests__/
+__mocks__/
+*.test.ts
+*.spec.ts
+
+# Git files
+.git/
+.gitignore
+
+# Lock files (consumers use their own)
+package-lock.json
+
+# Android build artifacts (native code is built by consumer)
+android/build/
+android/.gradle/
+android/local.properties
+android/.cxx/
+*.iml
