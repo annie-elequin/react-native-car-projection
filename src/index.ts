@@ -81,6 +81,12 @@ export interface UserInteractionData {
 }
 
 // Media types and interfaces
+/**
+ * Item for MediaBrowser browse tree (setMediaBrowseTree).
+ * For the tree, root key must be "__ROOT__". playable = tap to play (track);
+ * browsable = tap to open children (folder). Children are implied by the tree map
+ * (key = item id, value = that item's children).
+ */
 export interface MediaItem {
   id: string;
   title: string;
@@ -89,9 +95,9 @@ export interface MediaItem {
   duration?: number;      // milliseconds
   artworkUri?: string;    // URL or local file path
   mediaUri?: string;      // Optional - for your app's reference
-  playable?: boolean;     // true = track, false = folder/playlist
-  browsable?: boolean;    // Can contain children
-  children?: MediaItem[]; // Nested items for playlists
+  playable?: boolean;     // true = track (tap to play), false = folder
+  browsable?: boolean;    // true = folder (tap to open children)
+  children?: MediaItem[]; // Nested items; for setMediaBrowseTree use tree map instead
 }
 
 export type PlaybackStateType = 'none' | 'stopped' | 'paused' | 'playing' | 'buffering' | 'error';
@@ -552,6 +558,15 @@ class AndroidAuto {
     );
   }
 
+  /**
+   * Set the MediaBrowser browse tree so Android Auto can show available items (playlists, tracks).
+   * Tree keys are parent IDs; root must be "__ROOT__". Values are arrays of MediaItem for that parent.
+   * Use addMediaPlayFromIdListener to start playback when the user taps a playable item.
+   */
+  async setMediaBrowseTree(tree: Record<string, MediaItem[]>): Promise<void> {
+    await AndroidAutoModule.setMediaBrowseTree(JSON.stringify(tree));
+  }
+
   // Event listeners
   /**
    * Listen for session started events
@@ -580,6 +595,17 @@ class AndroidAuto {
    */
   addMediaPlayListener(listener: () => void): Subscription {
     return AndroidAutoModule.addListener('onMediaPlay', listener);
+  }
+
+  /**
+   * Listen for user selecting a playable item in the browse UI (e.g. tap a track).
+   * App should start playback for the given mediaId (e.g. match to track and play).
+   */
+  addMediaPlayFromIdListener(listener: (event: { mediaId: string }) => void): Subscription {
+    return AndroidAutoModule.addListener('onMediaPlayFromId', (event: any) => {
+      const mediaId = event?.mediaId ?? event?.value ?? '';
+      listener({ mediaId });
+    });
   }
 
   /**
