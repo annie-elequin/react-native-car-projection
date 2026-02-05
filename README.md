@@ -6,6 +6,8 @@ A modern React Native module for integrating Android Auto and CarPlay functional
 
 ## 🚀 Features
 
+- ✅ **Android Auto Support**: Full template UI and MediaBrowserService integration
+- ✅ **CarPlay Support**: Media-only mode via `MPNowPlayingInfoCenter` (no MFi approval required)
 - ✅ **Modern Architecture**: Built with Expo Modules API and Android Car App Library
 - ✅ **Expo SDK 53+ Compatible**: Works with React Native 0.79 and React 19
 - ✅ **TypeScript Support**: Full TypeScript definitions included
@@ -19,8 +21,8 @@ A modern React Native module for integrating Android Auto and CarPlay functional
 - Expo SDK 53 or later
 - React Native 0.79+
 - React 19+
-- Android API level 23+
-- Android Auto app installed on device
+- **Android**: API level 23+, Android Auto app installed
+- **iOS**: iOS 14+, `react-native-track-player` for CarPlay media
 
 ## 🏁 Installation
 
@@ -71,6 +73,50 @@ The plugin supports three app types. Example apps for each are available in the 
 | **Media only** | `mediaOnly: true`, `mediaSupport: true` | MediaBrowserService only (no Car App). Browse + now-playing, like Spotify. | [examples/TestMediaOnly](https://github.com/annie-elequin/TestCarProjection/tree/main/examples/TestMediaOnly) |
 
 Each example app runs on both iOS and Android; Android Auto–specific behavior applies on Android when connected to a head unit or DHU. See [examples/README.md](https://github.com/annie-elequin/TestCarProjection/blob/main/examples/README.md) for how to run them.
+
+## 🍎 CarPlay Integration (iOS)
+
+CarPlay support uses a **media-only approach** that works without Apple MFi approval. Your app's audio playback automatically appears in CarPlay's Now Playing screen.
+
+### How It Works
+
+1. Your app uses `react-native-track-player` for audio playback
+2. Track Player updates iOS's `MPNowPlayingInfoCenter`
+3. CarPlay displays the Now Playing info when audio is playing
+4. Play/pause/skip controls in CarPlay control your app's playback
+
+### Configuration
+
+```json
+{
+  "expo": {
+    "plugins": [
+      [
+        "react-native-car-projection",
+        {
+          "carPlayEnabled": true,
+          "carPlayTemplates": false,
+          "mediaOnly": true
+        }
+      ]
+    ]
+  }
+}
+```
+
+### CarPlay Now Playing Features
+
+| Feature | Supported |
+|---------|-----------|
+| Track title, artist, album | ✅ |
+| Artwork (blurred background) | ✅ |
+| Play/Pause/Skip controls | ✅ |
+| Seek (progress bar) | ✅ |
+| Custom UI/screens | ❌ (requires MFi approval) |
+
+> **Note:** Media-only apps don't get their own icon in CarPlay. They appear in the "Now Playing" screen when audio is playing.
+
+For full CarPlay documentation, see [docs/CARPLAY.md](./docs/CARPLAY.md).
 
 ## 🎯 Quick Start
 

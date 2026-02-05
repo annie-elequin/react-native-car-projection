@@ -241,6 +241,18 @@ function withCarPlayXcodeProject(config, options = {}) {
  * Options:
  * - carPlayEnabled: boolean (default: true) - Enable CarPlay support
  * - carPlayTemplates: boolean (default: false) - Enable full CarPlay templates (experimental)
+ * - mediaOnly: boolean (default: true) - If true, uses MPNowPlayingInfoCenter (no entitlement needed)
+ * 
+ * For media-only apps:
+ * - The CarPlay entitlement is NOT needed
+ * - react-native-track-player handles MPNowPlayingInfoCenter integration
+ * - App appears in CarPlay "Now Playing" when audio is playing
+ * - No special Apple approval required
+ * 
+ * For full template apps (carPlayTemplates: true):
+ * - The CarPlay entitlement IS needed (requires Apple MFi approval)
+ * - Custom CarPlay UI with templates
+ * - Requires iOS Scenes configuration
  */
 function withCarPlay(config, options = {}) {
   // Skip if explicitly disabled
@@ -248,17 +260,26 @@ function withCarPlay(config, options = {}) {
     return config;
   }
   
-  // Always add the entitlement
-  config = withCarPlayEntitlement(config, options);
+  // For media-only mode, we don't need the CarPlay entitlement
+  // react-native-track-player uses MPNowPlayingInfoCenter which works without it
+  const isMediaOnly = options.mediaOnly !== false; // Default to true
   
   // If full templates are enabled (experimental)
   if (options.carPlayTemplates === true) {
     console.log('[withCarPlay] ⚠️  Enabling experimental CarPlay template support');
-    console.log('[withCarPlay] This adds iOS Scenes which may affect app behavior');
+    console.log('[withCarPlay] This adds iOS Scenes and requires MFi CarPlay entitlement');
+    console.log('[withCarPlay] You need Apple MFi approval for the com.apple.developer.carplay-audio entitlement');
     
+    // Only add entitlement for full template mode (requires Apple approval)
+    config = withCarPlayEntitlement(config, options);
     config = withCarPlaySceneManifest(config, options);
     config = withCarPlaySwiftFiles(config, options);
     config = withCarPlayXcodeProject(config, options);
+  } else {
+    // Media-only mode - no entitlement needed
+    console.log('[withCarPlay] Media-only mode enabled');
+    console.log('[withCarPlay] Using MPNowPlayingInfoCenter via react-native-track-player');
+    console.log('[withCarPlay] No special CarPlay entitlement required');
   }
   
   return config;
