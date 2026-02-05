@@ -39,7 +39,9 @@
   "author": "Annie Elequin",
   "license": "MIT",
   "homepage": "https://github.com/annie-elequin/react-native-car-projection#readme",
-  "dependencies": {},
+  "dependencies": {
+    "react-native-carplay": "^2.4.1-beta.0"
+  },
   "devDependencies": {
     "expo-module-scripts": "^3.5.2"
   },
