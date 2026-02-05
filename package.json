@@ -39,6 +39,7 @@
   "author": "Annie Elequin",
   "license": "MIT",
   "homepage": "https://github.com/annie-elequin/react-native-car-projection#readme",
+  "dependencies": {},
   "devDependencies": {
     "expo-module-scripts": "^3.5.2"
   },

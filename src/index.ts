@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Platform } from "react-native";
 
 import AndroidAutoModule from "./AndroidAutoModule.js";
 
@@ -453,6 +454,11 @@ class AndroidAuto {
       await AndroidAutoModule.registerScreen(configJson);
       console.log(`[AndroidAuto] Native registerScreen completed for '${screenConfig.name}'`);
     } catch (e) {
+      // On iOS, Android Auto is not available - this is expected, just log a warning
+      if (Platform.OS === 'ios') {
+        console.log(`[AndroidAuto] Skipping registerScreen on iOS (Android Auto not available)`);
+        return; // Don't throw on iOS
+      }
       console.error(`[AndroidAuto] Native registerScreen FAILED for '${screenConfig.name}':`, e);
       throw e;
     }
@@ -831,3 +837,33 @@ export default androidAutoInstance;
 
 // Also export the class for advanced usage
 export { AndroidAuto };
+
+// =============================================================================
+// CarPlay exports (iOS only)
+// These re-export from react-native-carplay for a unified package experience
+// =============================================================================
+
+let CarPlayModule: any = null;
+if (Platform.OS === 'ios') {
+  try {
+    CarPlayModule = require('react-native-carplay');
+  } catch (e) {
+    console.warn('[react-native-car-projection] react-native-carplay not available:', e);
+  }
+}
+
+// Export CarPlay singleton (named export from react-native-carplay)
+export const CarPlay = CarPlayModule?.CarPlay ?? null;
+
+// Export CarPlay templates
+export const ListTemplate = CarPlayModule?.ListTemplate ?? null;
+export const GridTemplate = CarPlayModule?.GridTemplate ?? null;
+export const TabBarTemplate = CarPlayModule?.TabBarTemplate ?? null;
+export const AlertTemplate = CarPlayModule?.AlertTemplate ?? null;
+export const ActionSheetTemplate = CarPlayModule?.ActionSheetTemplate ?? null;
+export const NowPlayingTemplate = CarPlayModule?.NowPlayingTemplate ?? null;
+export const InformationTemplate = CarPlayModule?.InformationTemplate ?? null;
+export const PointOfInterestTemplate = CarPlayModule?.PointOfInterestTemplate ?? null;
+export const SearchTemplate = CarPlayModule?.SearchTemplate ?? null;
+export const MapTemplate = CarPlayModule?.MapTemplate ?? null;
+export const VoiceControlTemplate = CarPlayModule?.VoiceControlTemplate ?? null;
